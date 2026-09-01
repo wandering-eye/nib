@@ -5,9 +5,21 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"strings"
 )
 
-// RunGitCmd shells out to git in the context of the dstask repo.
+// RunGitCmd shells out to git in the context of the nib repository.
+// RunGitCmdWithOutput captures stdout rather than inheriting it, for the few
+// places that need to read git's answer instead of showing it.
+func RunGitCmdWithOutput(repoPath string, args ...string) (string, error) {
+	args = append([]string{"-C", repoPath}, args...)
+
+	out, err := exec.Command("git", args...).Output()
+
+	return string(out), err
+}
+
 func RunGitCmd(repoPath string, args ...string) error {
 	args = append([]string{"-C", repoPath}, args...)
 
@@ -31,45 +43,144 @@ func MustGitCommit(repoPath, format string, a ...any) {
 	fmt.Printf("\033[38;5;245m")
 
 	if err := GitCommit(repoPath, format, a...); err != nil {
-		ExitFail("error: %s", err)
+		// Preserve the code: a commit that changed nothing is a no-op, not a
+		// failure, and callers distinguish them.
+		ExitError(err)
 	}
 
 	fmt.Printf("\033[0m")
 }
 
 // GitCommit stages changes in the dstask repository and commits them.
+// gitPaths are the only paths a commit is allowed to touch: the status
+// directories and the key high water mark. `git add .` used to stage the whole
+// worktree, so anything else a user happened to leave staged rode along in a
+// commit describing a task change. Paths that do not exist are left out,
+// because git rejects a pathspec that matches nothing.
+func gitPaths(repoPath string) []string {
+	candidates := append(append([]string{}, ALL_STATUSES...), "next-key")
+
+	paths := make([]string, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		// An empty status directory is skipped: git tracks no such path and
+		// rejects a pathspec that matches nothing.
+		if !hasContent(repoPath, candidate) {
+			continue
+		}
+
+		paths = append(paths, candidate)
+	}
+
+	return paths
+}
+
+// hasContent reports whether git needs to see this path: either something is
+// there now, or git is tracking something that used to be. The second case
+// matters because a status change empties the old directory, and the deletion
+// still has to be staged.
+func hasContent(repoPath, candidate string) bool {
+	full := filepath.Join(repoPath, candidate)
+
+	if info, err := os.Stat(full); err == nil {
+		if !info.IsDir() {
+			return true
+		}
+
+		if entries, err := os.ReadDir(full); err == nil && len(entries) > 0 {
+			return true
+		}
+	}
+
+	tracked, err := RunGitCmdWithOutput(repoPath, "ls-files", "--", candidate)
+
+	return err == nil && strings.TrimSpace(tracked) != ""
+}
+
 func GitCommit(repoPath, format string, a ...any) error {
 	msg := fmt.Sprintf(format, a...)
 
-	// needed before add cmd, see diff-index command
-	bins, err := os.ReadDir(path.Join(repoPath, ".git/objects"))
+	head, hadHead := gitHead(repoPath)
+
+	// Anything already staged would be swept into a commit describing a task
+	// change, which is how `git add .` used to behave. Refuse instead of
+	// quietly committing someone else's work under our message.
+	foreign, err := stagedOutsideTaskPaths(repoPath)
 	if err != nil {
-		return fmt.Errorf("failed to run git commit: %w", err)
+		return err
 	}
 
-	brandNew := len(bins) <= 2
+	if len(foreign) > 0 {
+		return fmt.Errorf(
+			"refusing to commit: %s is staged and is not task state; commit or unstage it first",
+			strings.Join(foreign, ", "),
+		)
+	}
 
-	// git add all changed/created files
-	// could optimise this to be given an explicit list of
-	// added/modified/deleted files -- only if slow.
-	// tell git to stage (all) changes
-	if err = RunGitCmd(repoPath, "add", "."); err != nil {
+	arguments := append([]string{"add", "--"}, gitPaths(repoPath)...)
+	if _, err := RunGitCmdWithOutput(repoPath, arguments...); err != nil {
 		return fmt.Errorf("failed to add changes to repo: %w", err)
 	}
 
-	// check for changes -- returns exit status 1 on change. Make sure git repo
-	// has commits first, to avoid missing HEAD error.
-	if !brandNew && RunGitCmd(repoPath, "diff-index", "--quiet", "HEAD", "--") == nil {
-		fmt.Println("No changes detected")
-
-		return nil
+	// Scoped to the task paths: an unstaged edit to some other tracked file
+	// would otherwise look like a change, skip the no-op result, and turn a
+	// command that did nothing into a commit failure.
+	noChange := append([]string{"diff", "--cached", "--quiet", "HEAD", "--"}, gitPaths(repoPath)...)
+	if _, noChangeErr := RunGitCmdWithOutput(repoPath, noChange...); hadHead && noChangeErr == nil {
+		return NoOpError("nothing changed")
 	}
 
-	if err = RunGitCmd(repoPath, "commit", "--no-gpg-sign", "-m", msg); err != nil {
+	if _, err := RunGitCmdWithOutput(repoPath, "commit", "--no-gpg-sign", "-m", msg); err != nil {
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
+	// The write is only done when history says so. Reporting success off an
+	// exit code alone is how a change that never landed looked like one that
+	// did.
+	moved, hasHead := gitHead(repoPath)
+	if !hasHead || (hadHead && moved == head) {
+		return fmt.Errorf("commit reported success but HEAD did not move")
+	}
+
 	return nil
+}
+
+// stagedOutsideTaskPaths lists staged files that are not task state.
+func stagedOutsideTaskPaths(repoPath string) ([]string, error) {
+	out, err := RunGitCmdWithOutput(repoPath, "diff", "--cached", "--name-only")
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect staged changes: %w", err)
+	}
+
+	owned := map[string]bool{}
+	for _, path := range append(append([]string{}, ALL_STATUSES...), "next-key") {
+		owned[path] = true
+	}
+
+	var foreign []string
+
+	for _, line := range strings.Split(out, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if !owned[strings.SplitN(trimmed, "/", 2)[0]] {
+			foreign = append(foreign, trimmed)
+		}
+	}
+
+	return foreign, nil
+}
+
+// gitHead returns the current commit, and whether there is one at all.
+func gitHead(repoPath string) (string, bool) {
+	out, err := RunGitCmdWithOutput(repoPath, "rev-parse", "HEAD")
+	if err != nil {
+		return "", false
+	}
+
+	return strings.TrimSpace(out), true
 }
 
 // MustGetRepoPath returns the full path to a file within the dstask git repo.
@@ -96,9 +207,7 @@ func EnsureRepoExists(repoPath string) {
 
 	gitDotGitLocation := path.Join(repoPath, ".git")
 	if _, err := os.Stat(gitDotGitLocation); os.IsNotExist(err) {
-		if StdoutIsTTY() {
-			ConfirmOrAbort("Could not find dstask repository at %s -- create?", repoPath)
-		}
+		ConfirmOrAbort("could not find a nib repository at %s -- create?", repoPath)
 
 		err = os.Mkdir(repoPath, 0o700)
 		if err != nil {

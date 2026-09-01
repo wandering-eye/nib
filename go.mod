@@ -5,7 +5,6 @@ go 1.23.4
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-runewidth v0.0.16
 	github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 	github.com/sirupsen/logrus v1.9.3

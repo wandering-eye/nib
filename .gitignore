@@ -12,3 +12,4 @@ dist
 vendor
 # Added by goreleaser init:
 dist/
+integration/nib

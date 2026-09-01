@@ -24,7 +24,6 @@ type State struct {
 // the correct task is targeted between operations. Historically, each task
 // stored its preferred ID but this resulted in merge conflicts when 2
 // machines were using dstask concurrently on the same repository.
-type IdsMap map[string]int
 
 // Save serialises State to disk as gob binary data.
 func (state State) Save(stateFilePath string) {
@@ -100,23 +99,4 @@ func mustReadGob(filePath string, object any) {
 	if err != nil {
 		ExitFail("Failed to parse state gob: %s, %s", filePath, err)
 	}
-}
-
-func (ids *IdsMap) Save(idsFilePath string) {
-	if err := os.MkdirAll(filepath.Dir(idsFilePath), os.ModePerm); err != nil {
-		ExitFail("Failed to create directories for %s: %s", idsFilePath, err)
-	}
-
-	mustWriteGob(idsFilePath, &ids)
-}
-
-func LoadIds(idsFilePath string) IdsMap {
-	if _, err := os.Stat(idsFilePath); os.IsNotExist(err) {
-		return make(IdsMap)
-	}
-
-	ids := make(IdsMap, 1000)
-	mustReadGob(idsFilePath, &ids)
-
-	return ids
 }

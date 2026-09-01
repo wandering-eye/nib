@@ -36,14 +36,19 @@ func getNextWeekday(weekday time.Weekday) time.Time {
 	return time.Date(year, month, day, 0, 0, 0, 0, time.Local)
 }
 
+// normalizeToLocal reduces an instant to the local calendar day it falls on.
+// The conversion matters: stored instants are UTC, and reading their UTC
+// calendar fields as if they were local puts the day out by one east of UTC.
 func normalizeToLocal(t time.Time) time.Time {
-    return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
+	local := t.Local()
+
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.Local)
 }
 
 func assertDateEqual(t *testing.T, expected, actual time.Time) {
-    expectedLocal := normalizeToLocal(expected)
-    actualLocal := normalizeToLocal(actual)
-    assert.Equal(t, expectedLocal, actualLocal)
+	expectedLocal := normalizeToLocal(expected)
+	actualLocal := normalizeToLocal(actual)
+	assert.Equal(t, expectedLocal, actualLocal)
 }
 
 func TestAddTaskWithFullDate(t *testing.T) {
@@ -157,8 +162,24 @@ func TestAddTaskWithWeekdays(t *testing.T) {
 
 	program := testCmd(repo)
 
-	weekdays := []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
-	weekdayTimes := []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday, time.Saturday, time.Sunday}
+	weekdays := []string{
+		"monday",
+		"tuesday",
+		"wednesday",
+		"thursday",
+		"friday",
+		"saturday",
+		"sunday",
+	}
+	weekdayTimes := []time.Weekday{
+		time.Monday,
+		time.Tuesday,
+		time.Wednesday,
+		time.Thursday,
+		time.Friday,
+		time.Saturday,
+		time.Sunday,
+	}
 
 	for i, weekday := range weekdays {
 		output, exiterr, success := program("add", "Task due "+weekday, "due:"+weekday)

@@ -3,14 +3,17 @@ package dstask
 import "os"
 
 func init() {
-	if os.Getenv("DSTASK_FAKE_PTY") != "" {
-		FAKE_PTY = true
+	// NO_COLOR is the only environment signal that suppresses colour. Whether
+	// stdout happens to be a terminal is deliberately not consulted.
+	if _, noColour := os.LookupEnv("NO_COLOR"); noColour {
+		COLOUR_ENABLED = false
 	}
 }
 
 var (
-	// for CI testing.
-	FAKE_PTY = false
+	// colour is a choice made by the caller, not a property of stdout. Turned
+	// off by NO_COLOR or --color=never, on by --color=always.
+	COLOUR_ENABLED = true
 	// populated by linker flags, see do-release.sh.
 	GIT_COMMIT = "Unknown"
 	VERSION    = "Unknown"
@@ -59,6 +62,14 @@ const (
 	CMD_HELP             = "help"
 	CMD_VERSION          = "version"
 
+	// exit codes are part of the interface: a caller must be able to tell a
+	// failure from a misuse from a reference that matched nothing, without
+	// parsing messages.
+	EXIT_FAILURE  = 1
+	EXIT_USAGE    = 2
+	EXIT_NO_MATCH = 3
+	EXIT_NO_OP    = 4
+
 	//nolint
 	CMD_PRINT_ZSH_COMPLETION = "zsh-completion"
 	//nolint
@@ -77,14 +88,14 @@ const (
 	MAX_TASKS_OPEN    = 10000
 	TASK_FILENAME_LEN = 40
 
-	// if the terminal is too short, show this many tasks anyway.
-	MIN_TASKS_SHOWN = 8
-
-	// reserve this many lines for status messages/prompt.
-	TERMINAL_HEIGHT_MARGIN = 9
+	// truncated views show this many tasks. Fixed rather than derived from the
+	// terminal height, so the same command produces the same output anywhere.
+	MAX_TASKS_SHOWN = 25
 
 	IGNORE_CONTEXT_KEYWORD = "--"
 	NOTE_MODE_KEYWORD      = "/"
+	JSON_KEYWORD           = "--json"
+	COLOUR_KEYWORD         = "--color"
 
 	// theme loosely based on https://github.com/GothenburgBitFactory/taskwarrior/blob/2.6.0/doc/rc/dark-256.theme
 	TABLE_MAX_WIDTH             = 160 // keep it readable

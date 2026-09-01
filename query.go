@@ -25,6 +25,8 @@ type Query struct {
 	Template      int
 	Text          string
 	IgnoreContext bool
+	// render as JSON instead of the default table, set with --json
+	JSON bool
 	// any words after the note operator: /
 	Note string
 }
@@ -84,7 +86,7 @@ func (query Query) PrintContextDescription() {
 	}
 
 	if query.String() != "" {
-		fmt.Printf("\033[33mActive context%s: %s\033[0m\n", envVarNotification, query)
+		fmt.Println(colour("33", fmt.Sprintf("Active context%s: %s", envVarNotification, query)))
 	}
 }
 
@@ -131,6 +133,8 @@ func ParseQuery(args ...string) Query {
 
 	var ignoreContext bool
 
+	var outputJSON bool
+
 	// something other than an ID has been parsed -- accept no more IDs
 	var IDsExhausted bool
 
@@ -142,6 +146,21 @@ func ParseQuery(args ...string) Query {
 		if notesModeActivated {
 			// no more parsing syntax
 			notes = append(notes, item)
+
+			continue
+		}
+
+		// display flags are consumed before anything else so they can never be
+		// mistaken for query text, and with continue so that they do not stop
+		// IDs being parsed
+		if lcItem == JSON_KEYWORD {
+			outputJSON = true
+
+			continue
+		}
+
+		if lcItem == COLOUR_KEYWORD || strings.HasPrefix(lcItem, COLOUR_KEYWORD+"=") {
+			COLOUR_ENABLED = parseColourFlag(lcItem)
 
 			continue
 		}
@@ -172,7 +191,7 @@ func ParseQuery(args ...string) Query {
 			antiProjects = append(antiProjects, lcItem[9:])
 		} else if strings.HasPrefix(lcItem, "due.") || strings.HasPrefix(lcItem, "due:") {
 			if dueDateSet {
-				ExitFail("Query should only have one due date")
+				ExitUsage("query should only have one due date")
 			}
 			dateFilterType, dueDate = ParseDueDateArg(lcItem)
 			dueDateSet = true
@@ -207,7 +226,29 @@ func ParseQuery(args ...string) Query {
 		Text:          strings.Join(words, " "),
 		Note:          strings.Join(notes, " "),
 		IgnoreContext: ignoreContext,
+		JSON:          outputJSON,
 	}
+}
+
+// parseColourFlag reads --color=never|always. The setting is applied as it is
+// parsed rather than returned, because the errors and help printed further
+// down the same command line must already honour it.
+func parseColourFlag(arg string) bool {
+	_, value, hasValue := strings.Cut(arg, "=")
+	if !hasValue || value == "" {
+		ExitUsage("%s requires a value: never or always", COLOUR_KEYWORD)
+	}
+
+	switch value {
+	case "never":
+		return false
+	case "always":
+		return true
+	}
+
+	ExitUsage("invalid %s value %q: expected never or always", COLOUR_KEYWORD, value)
+
+	return false
 }
 
 // Merge applies a context to a new task. Returns new Query, does not mutate.
@@ -229,7 +270,7 @@ func (query *Query) Merge(q2 Query) Query {
 
 	if q2.Project != "" {
 		if q.Project != "" && q.Project != q2.Project {
-			ExitFail("Could not apply q2, project conflict")
+			ExitUsage("could not apply q2, project conflict")
 		} else {
 			q.Project = q2.Project
 		}
@@ -243,7 +284,7 @@ func (query *Query) Merge(q2 Query) Query {
 
 	if !q2.Due.IsZero() {
 		if !q.Due.IsZero() && q.Due != q2.Due {
-			ExitFail("Could not apply q2, date filter conflict")
+			ExitUsage("could not apply q2, date filter conflict")
 		} else {
 			q.Due = q2.Due
 			q.DateFilter = q2.DateFilter
@@ -252,7 +293,7 @@ func (query *Query) Merge(q2 Query) Query {
 
 	if q2.Priority != "" {
 		if q.Priority != "" {
-			ExitFail("Could not apply q2, priority conflict")
+			ExitUsage("could not apply q2, priority conflict")
 		} else {
 			q.Priority = q2.Priority
 		}

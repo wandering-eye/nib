@@ -1,73 +1,85 @@
 package dstask
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/mattn/go-isatty"
 )
 
-// DisplayByNext renders the TaskSet's array of tasks.
-func (ts *TaskSet) DisplayByNext(ctx Query, truncate bool) error {
+// sgr returns an ANSI select-graphic-rendition escape, or nothing when colour
+// is disabled. Every escape this program emits is built here, so NO_COLOR and
+// --color have a single place to take effect.
+func sgr(params string) string {
+	if !COLOUR_ENABLED {
+		return ""
+	}
+
+	return "\033[" + params + "m"
+}
+
+// colour wraps text in an SGR escape, resetting afterwards.
+func colour(params, text string) string {
+	return sgr(params) + text + sgr("0")
+}
+
+// DisplayByNext renders the TaskSet's array of tasks. The caller asks for the
+// rendering it wants; what stdout is attached to is never consulted.
+func (ts *TaskSet) DisplayByNext(ctx Query, truncate, asJSON bool) error {
 	ts.SortByCreated(Ascending)  // older tasks first (from top) like a FIFO queue
 	ts.SortByPriority(Ascending) // high priority tasks first, of course
 
-	if StdoutIsTTY() {
-		ctx.PrintContextDescription()
-
-		err := ts.renderTable(truncate)
-		if err != nil {
-			return err
-		}
-
-		var critical int
-
-		var totalCritical int
-
-		for _, t := range ts.Tasks() {
-			if t.Priority == PRIORITY_CRITICAL {
-				critical++
-			}
-		}
-
-		// search outside current filter in taskset
-		for _, t := range ts.AllTasks() {
-			if t.Priority == PRIORITY_CRITICAL && !StrSliceContains(HIDDEN_STATUSES, t.Status) {
-				totalCritical++
-			}
-		}
-
-		if critical < totalCritical {
-			fmt.Printf(
-				"\033[38;5;%dm%v critical task(s) outside this context! Use `dstask -- P0` to see them.\033[0m\n",
-				FG_PRIORITY_CRITICAL,
-				totalCritical-critical,
-			)
-		}
-
-		return nil
+	if asJSON {
+		return renderJSON(ts.Tasks())
 	}
-	// stdout is not a tty
-	return ts.renderJSON()
-}
 
-func (ts *TaskSet) renderJSON() error {
-	unfilteredTasks := ts.Tasks()
+	ctx.PrintContextDescription()
 
-	data, err := json.MarshalIndent(unfilteredTasks, "", "  ")
+	err := ts.renderTable(truncate)
 	if err != nil {
 		return err
 	}
 
-	_, err = io.Copy(os.Stdout, bytes.NewBuffer(data))
+	var critical int
 
-	return err
+	var totalCritical int
+
+	for _, t := range ts.Tasks() {
+		if t.Priority == PRIORITY_CRITICAL {
+			critical++
+		}
+	}
+
+	// search outside current filter in taskset
+	for _, t := range ts.AllTasks() {
+		if t.Priority == PRIORITY_CRITICAL && !StrSliceContains(HIDDEN_STATUSES, t.Status) {
+			totalCritical++
+		}
+	}
+
+	if critical < totalCritical {
+		fmt.Println(colour(
+			fmt.Sprintf("38;5;%d", FG_PRIORITY_CRITICAL),
+			fmt.Sprintf(
+				"%v critical task(s) outside this context! Use `nib -- P0` to see them.",
+				totalCritical-critical,
+			),
+		))
+	}
+
+	return nil
+}
+
+// renderJSON writes any of the structures this program reports as indented
+// JSON. It is reached only when the caller asked for JSON with --json.
+func renderJSON(value any) error {
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return WriteStdout(data)
 }
 
 func (ts *TaskSet) renderTable(truncate bool) error {
@@ -75,29 +87,29 @@ func (ts *TaskSet) renderTable(truncate bool) error {
 	total := len(tasks)
 
 	if ts.NumTotal() == 0 {
-		fmt.Println("No tasks found. Run `dstask help` for instructions.")
+		fmt.Println("No tasks found. Run `nib help` for instructions.")
 	} else if len(tasks) == 0 {
-		ExitFail("No matching tasks in given context or filter.")
+		// an empty result is not a failure -- the same query renders [] with
+		// --json, and the exit code must not depend on the rendering
+		fmt.Println("No matching tasks in given context or filter.")
 	} else if len(tasks) == 1 {
 		task := tasks[0]
 		task.Display()
 
 		if task.Notes != "" {
-			fmt.Printf("\nNotes on task %d:\n\033[38;5;245m%s\033[0m\n\n", task.ID, task.Notes)
+			fmt.Printf("\nNotes on task %d:\n%s\n\n", task.ID, colour("38;5;245", task.Notes))
 		}
 
 		return nil
 	} else {
-		w, h := MustGetTermSize()
-
-		maxTasks := max(h-TERMINAL_HEIGHT_MARGIN, MIN_TASKS_SHOWN)
+		maxTasks := MAX_TASKS_SHOWN
 
 		if truncate && maxTasks < len(tasks) {
 			tasks = tasks[:maxTasks]
 		}
 
 		table := NewTable(
-			w,
+			TerminalWidth(),
 			"ID",
 			"Priority",
 			"Tags",
@@ -137,10 +149,8 @@ func (ts *TaskSet) renderTable(truncate bool) error {
 }
 
 func (task *Task) Display() {
-	w, _ := MustGetTermSize()
-
 	table := NewTable(
-		w,
+		TerminalWidth(),
 		"Name",
 		"Value",
 	)
@@ -218,98 +228,83 @@ func (p *Project) Style() RowStyle {
 	return style
 }
 
-func (ts TaskSet) DisplayByWeek() {
+func (ts TaskSet) DisplayByWeek(asJSON bool) error {
 	ts.SortByResolved(Ascending)
 
-	if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
-		w, _ := MustGetTermSize()
+	if asJSON {
+		return renderJSON(ts.Tasks())
+	}
 
-		var table *Table
+	var table *Table
 
-		var lastWeek int
+	var lastWeek int
 
-		tasks := ts.Tasks()
+	tasks := ts.Tasks()
 
-		for _, t := range tasks {
-			_, week := t.Resolved.ISOWeek()
+	for _, t := range tasks {
+		_, week := t.Resolved.ISOWeek()
 
-			// guaranteed true for first iteration, ISOweek starts with 1.
-			if week != lastWeek {
-				if table != nil && len(table.Rows) > 0 {
-					table.Render()
-				}
-				// insert gap
-				fmt.Printf(
-					"\n\n> Week %d, starting %s\n\n",
-					week,
-					t.Resolved.Format("Mon 2 Jan 2006"),
-				)
-
-				table = NewTable(
-					w,
-					"Resolved",
-					"Priority",
-					"Tags",
-					"Due",
-					"Project",
-					"Summary",
-				)
+		// guaranteed true for first iteration, ISOweek starts with 1.
+		if week != lastWeek {
+			if table != nil && len(table.Rows) > 0 {
+				table.Render()
 			}
-
-			table.AddRow(
-				[]string{
-					t.Resolved.Format("Mon 2"),
-					t.Priority,
-					strings.Join(t.Tags, " "),
-					t.ParseDueDateToStr(),
-					t.Project,
-					t.LongSummary(),
-				},
-				t.Style(),
+			// insert gap
+			fmt.Printf(
+				"\n\n> Week %d, starting %s\n\n",
+				week,
+				t.Resolved.Format("Mon 2 Jan 2006"),
 			)
 
-			_, lastWeek = t.Resolved.ISOWeek()
+			table = NewTable(
+				TerminalWidth(),
+				"Resolved",
+				"Priority",
+				"Tags",
+				"Due",
+				"Project",
+				"Summary",
+			)
 		}
 
-		if table != nil {
-			table.Render()
-		}
+		table.AddRow(
+			[]string{
+				t.Resolved.Format("Mon 2"),
+				t.Priority,
+				strings.Join(t.Tags, " "),
+				t.ParseDueDateToStr(),
+				t.Project,
+				t.LongSummary(),
+			},
+			t.Style(),
+		)
 
-		fmt.Printf("%v tasks.\n", len(tasks))
-	} else {
-		// print json
-		if err := ts.renderJSON(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		}
+		_, lastWeek = t.Resolved.ISOWeek()
 	}
+
+	if table != nil {
+		table.Render()
+	}
+
+	fmt.Printf("%v tasks.\n", len(tasks))
+
+	return nil
 }
 
-func (ts TaskSet) DisplayProjects() error {
-	if StdoutIsTTY() {
-		ts.renderProjectsTable()
-
-		return nil
+func (ts TaskSet) DisplayProjects(asJSON bool) error {
+	if asJSON {
+		return renderJSON(ts.GetProjects())
 	}
 
-	return ts.renderProjectsJSON()
-}
+	ts.renderProjectsTable()
 
-func (ts TaskSet) renderProjectsJSON() error {
-	data, err := json.MarshalIndent(ts.GetProjects(), "", "  ")
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(os.Stdout, bytes.NewBuffer(data))
-
-	return err
+	return nil
 }
 
 func (ts TaskSet) renderProjectsTable() {
 	projects := ts.GetProjects()
-	w, _ := MustGetTermSize()
 	table := NewTable(
-		w,
+		TerminalWidth(),
 		"Name",
 		"Progress",
 		"Created",

@@ -1,4 +1,4 @@
-function dstask () {
+function nib () {
     local has_double_dash subcommand task_ids
 
     if (( $# == 1 || $# == 2 )); then
@@ -9,31 +9,31 @@ function dstask () {
             [[ "${subcommand}" == "modify" && -n "${WIDGET}" ]] \
         }; then
             task_ids=("${(@f)$( \
-                command dstask show-open $( (( has_double_dash )) && echo "--" ) \
+                command nib show-open --json $( (( has_double_dash )) && echo "--" ) \
                 | jq -r '.[] | [.id, .summary] | @tsv' \
-                | fzf --multi --delimiter='\t' --nth=2 --accept-nth=1 --preview='DSTASK_FAKE_PTY=1 dstask {1} --' \
+                | fzf --multi --delimiter='\t' --nth=2 --accept-nth=1 --preview=' nib {1} --' \
             )}")
             (( ${#task_ids[@]} > 0 )) || return
             if [[ "${subcommand}" == "modify" ]]; then
                 RBUFFER=""
-                LBUFFER="dstask modify ${task_ids[@]}"
+                LBUFFER="nib modify ${task_ids[@]}"
             else
-                xargs -n1 dstask "${subcommand}" <<< "${task_ids[@]}"
+                xargs -n1 nib "${subcommand}" <<< "${task_ids[@]}"
             fi
             return
         fi
     fi
 
-    command dstask "$@"
+    command nib "$@"
 }
 
-function dstask-accept-line () {
-    if [[ "${BUFFER}" =~ "^\s*dstask\s+modify\s*$" ]]; then
-        dstask modify
+function nib-accept-line () {
+    if [[ "${BUFFER}" =~ "^\s*nib\s+modify\s*$" ]]; then
+        nib modify
         zle redisplay
     else
         zle orig-accept-line
     fi
 }
 zle -A accept-line orig-accept-line
-zle -N accept-line dstask-accept-line
+zle -N accept-line nib-accept-line

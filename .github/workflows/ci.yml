@@ -73,5 +73,5 @@ jobs:
       - name: Build Windows binaries
         shell: pwsh
         run: |
-          go build -o dstask.exe ./cmd/dstask
+          go build -o nib.exe ./cmd/nib
           go build -o dstask-import.exe ./cmd/dstask-import

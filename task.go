@@ -32,7 +32,10 @@ type Task struct {
 
 	// ephemeral, used to address tasks quickly. Non-resolved only. Populated
 	// from IDCache or on-the-fly.
-	ID int `json:"id" yaml:"-"`
+	// Key is persisted and committed, so it survives a clone and is never
+	// reissued. dstask kept it in an untracked .git cache and rebuilt it by
+	// directory scan, which renumbered the store whenever that file went away.
+	ID int `json:"id" yaml:"key,omitempty"`
 
 	// Deleted, if true, marks this task for deletion
 	Deleted bool `json:"-" yaml:"-"`
@@ -113,7 +116,7 @@ func (t Task) Equals(t2 Task) bool {
 
 // Unmarshal a Task from disk. We explicitly pass status, because the caller
 // already knows the status, and can override the status declared in yaml.
-func unmarshalTask(path string, finfo os.DirEntry, ids IdsMap, status string) (Task, error) {
+func unmarshalTask(path string, finfo os.DirEntry, status string) (Task, error) {
 	if len(finfo.Name()) != TASK_FILENAME_LEN {
 		return Task{}, fmt.Errorf("filename does not encode UUID %s (wrong length)", finfo.Name())
 	}
@@ -126,7 +129,6 @@ func unmarshalTask(path string, finfo os.DirEntry, ids IdsMap, status string) (T
 	t := Task{
 		UUID:   uuid,
 		Status: status,
-		ID:     ids[uuid],
 	}
 
 	data, err := os.ReadFile(path)
@@ -211,6 +213,13 @@ func (t *Task) MatchesFilter(query Query) bool {
 // Normalise mutates and sorts some of a task object's fields into a consistent
 // format. This should make git diffs more useful.
 func (t *Task) Normalise() {
+	// Stored instants are UTC. Local time is an input and display concern:
+	// "tomorrow" is resolved against the user's day, then converted here, so
+	// two machines in different zones agree on what is on disk.
+	t.Created = t.Created.UTC()
+	t.Resolved = t.Resolved.UTC()
+	t.Due = t.Due.UTC()
+
 	t.Project = strings.ToLower(t.Project)
 
 	// tags must be lowercase
@@ -223,11 +232,6 @@ func (t *Task) Normalise() {
 
 	// tags must be unique
 	t.Tags = DeduplicateStrings(t.Tags)
-
-	if t.Status == STATUS_RESOLVED {
-		// resolved task should not have ID as it's meaningless
-		t.ID = 0
-	}
 
 	if t.Priority == "" {
 		t.Priority = PRIORITY_NORMAL
@@ -355,25 +359,37 @@ func (t *Task) SaveToDisk(repoPath string) {
 	}
 }
 
+// ParseDueDateToStr renders a due date the way a person reads it. The stored
+// instant is UTC, so it is converted back to local first: "tomorrow" is a
+// property of the reader's day, and comparing a UTC instant against a local
+// now puts every due date a day out for anyone east of UTC.
 func (t *Task) ParseDueDateToStr() string {
-	due := t.Due
+	due := t.Due.Local()
 	now := time.Now()
+
 	if due.IsZero() {
 		return ""
 	}
-	if due.YearDay() == now.YearDay() && t.Due.Year() == now.Year() {
+
+	if due.YearDay() == now.YearDay() && due.Year() == now.Year() {
 		return "today"
 	}
-	if due.YearDay() == now.AddDate(0, 0, 1).YearDay() && t.Due.Year() == now.AddDate(0, 0, 1).Year() {
+
+	tomorrow := now.AddDate(0, 0, 1)
+	if due.YearDay() == tomorrow.YearDay() && due.Year() == tomorrow.Year() {
 		return "tomorrow"
 	}
-	if due.YearDay() == now.AddDate(0, 0, -1).YearDay() && t.Due.Year() == now.AddDate(0, 0, -1).Year() {
+
+	yesterday := now.AddDate(0, 0, -1)
+	if due.YearDay() == yesterday.YearDay() && due.Year() == yesterday.Year() {
 		return "yesterday"
 	}
+
 	return formatDueDate(due)
 }
 
 func formatDueDate(due time.Time) string {
+	due = due.Local()
 	now := time.Now()
 	year, _, _ := now.Date()
 	dueYear, _, _ := due.Date()

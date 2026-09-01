@@ -56,7 +56,9 @@ func TestModifyTasksInContext(t *testing.T) {
 	output, exiterr, success = program("context", "+three")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("modify", "+extra")
+	// No IDs means every task in the context, which asks first.
+	confirming := testConfirmingCmd(repo)
+	output, exiterr, success = confirming("modify", "+extra")
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("next")

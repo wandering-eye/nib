@@ -12,9 +12,9 @@ func Help(cmd string) {
 
 	switch cmd {
 	case CMD_NEXT:
-		helpStr = `Usage: dstask next [filter] [--]
-Usage: dstask [filter] [--]
-Example: dstask +work +bug --
+		helpStr = `Usage: nib next [filter] [--]
+Usage: nib [filter] [--]
+Example: nib +work +bug --
 
 Display list of non-resolved tasks in the current context, most recent last,
 optional filter. It is the default command, so "next" is unnecessary.
@@ -25,8 +25,8 @@ Colour key:
 `
 		showKey = true
 	case CMD_ADD:
-		helpStr = `Usage: dstask add [template:<id>] [task summary] [--]
-Example: dstask add Fix main web page 500 error +bug P1 project:website
+		helpStr = `Usage: nib add [template:<id>] [task summary] [--]
+Example: nib add Fix main web page 500 error +bug P1 project:website
 
 Add a task, returning the git commit output which contains the task ID, used
 later to reference the task.
@@ -37,13 +37,13 @@ Add -- to ignore the current context. / can be used when adding tasks to note
 any words after.
 
 A copy of an existing task can be made by including "template:<id>". See
-"dstask help template" for more information on templates.
+"nib help template" for more information on templates.
 
 `
 	case CMD_TEMPLATE:
-		helpStr = `Usage dstask template <id> [task summary] [--]
-Example: dstask template Fix main web page 500 error +bug P1 project:website
-Example: dstask template 34 project:
+		helpStr = `Usage nib template <id> [task summary] [--]
+Example: nib template Fix main web page 500 error +bug P1 project:website
+Example: nib template 34 project:
 
 If valid task ID is supplied, a copy of the task is created as a template. If
 no ID is given, a new task template is created.
@@ -58,7 +58,7 @@ Their intent is to act as a readily available task template for commonly used
 or repeated tasks.
 
 To create a new task from a template use the command:
-"dstask add template:<id> [task summary] [--]"
+"nib add template:<id> [task summary] [--]"
 The template task <id> remains unchanged, but a new task is created as a copy
 with any modifications made in the task summary.
 
@@ -71,8 +71,8 @@ performing procedures. Example:
 
 `
 	case CMD_RM, CMD_REMOVE:
-		helpStr = `Usage: dstask remove <id...>
-Example: dstask 15 remove
+		helpStr = `Usage: nib remove <id...>
+Example: nib 15 remove
 
 Remove a task.
 
@@ -81,8 +81,8 @@ The task is deleted from the filesystem, and the change is committed.
 `
 
 	case CMD_LOG:
-		helpStr = `Usage: dstask log [task summary] [--]
-Example: dstask log Fix main web page 500 error +bug P1 project:website
+		helpStr = `Usage: nib log [task summary] [--]
+Example: nib log Fix main web page 500 error +bug P1 project:website
 
 Add an immediately resolved task. Syntax identical to add command.
 
@@ -92,10 +92,10 @@ Add -- to ignore the current context.
 
 `
 	case CMD_START:
-		helpStr = `Usage: dstask <id...> start
-Usage: dstask start [task summary] [--]
-Example: dstask 15 start
-Example: dstask start Fix main web page 500 error +bug P1 project:website
+		helpStr = `Usage: nib <id...> start
+Usage: nib start [task summary] [--]
+Example: nib 15 start
+Example: nib start Fix main web page 500 error +bug P1 project:website
 
 Mark a task as active, meaning you're currently at work on the task.
 
@@ -108,16 +108,16 @@ Add -- to ignore the current context.
 	case CMD_NOTE:
 		fallthrough
 	case CMD_NOTES:
-		helpStr = `Usage: dstask note <id>
-Usage: dstask note <id> <text>
+		helpStr = `Usage: nib note <id>
+Usage: nib note <id> <text>
 Example task 13 note problem is faulty hardware
 
 Edit or append text to the markdown notes attached to a particular task.
 `
 	case CMD_STOP:
-		helpStr = `Usage: dstask <id...> stop [text]
-Example: dstask 15 stop
-Example: dstask 15 stop replaced some hardware
+		helpStr = `Usage: nib <id...> stop [text]
+Example: nib 15 stop
+Example: nib 15 stop replaced some hardware
 
 Set a task as inactive, meaning you've stopped work on the task. Optional text
 may be added, which will be appended to the note.
@@ -125,16 +125,16 @@ may be added, which will be appended to the note.
 	case CMD_RESOLVE:
 		fallthrough
 	case CMD_DONE:
-		helpStr = `Usage: dstask <id...> done [closing note]
-Example: dstask 15 done
-Example: dstask 15 done replaced some hardware
+		helpStr = `Usage: nib <id...> done [closing note]
+Example: nib 15 done
+Example: nib 15 done replaced some hardware
 
 Resolve a task. Optional text may be added, which will be appended to the note.
 `
 	case CMD_CONTEXT:
-		helpStr = `Usage: dstask context <filter>
-Example: dstask context +work -bug
-Example: dstask context none
+		helpStr = `Usage: nib context <filter>
+Example: nib context +work -bug
+Example: nib context none
 
 Set a global filter consisting of a project, tags or antitags. Subsequent new
 tasks and most commands will then have this filter applied automatically.
@@ -142,15 +142,15 @@ tasks and most commands will then have this filter applied automatically.
 For example, if you were to run "task add fix the webserver," the given task
 would then have the tag "work" applied automatically.
 
-To reset to no context, run: dstask context none
+To reset to no context, run: nib context none
 
 Context can also be set with the environment variable DSTASK_CONTEXT. If set, 
 this context string will override the context stored on disk.
 `
 	case CMD_MODIFY:
-		helpStr = `Usage: dstask <id...> modify <filter>
-Usage: dstask modify <filter>
-Example: dstask 34 modify -work +home project:workbench -project:website
+		helpStr = `Usage: nib <id...> modify <filter>
+Usage: nib modify <filter>
+Example: nib 34 modify -work +home project:workbench -project:website
 
 Modify the attributes of the given tasks, specified by ID. If no ID is given,
 the operation will be performed to all tasks in the current context subject to
@@ -159,37 +159,37 @@ confirmation.
 Modifiable attributes: tags, project and priority.
 `
 	case CMD_EDIT:
-		helpStr = `Usage: dstask <id...> edit
+		helpStr = `Usage: nib <id...> edit
 
 Edit a task in your text editor.
 `
 	case CMD_UNDO:
-		helpStr = `Usage: dstask undo
-Usage: dstask undo <n>
+		helpStr = `Usage: nib undo
+Usage: nib undo <n>
 
 Undo the last <n> commits on the repository. Default is 1. Use
 
-	dstask git log
+	nib git log
 
 To see commit history. For more complicated history manipulation it may be best
-to revert/rebase/merge on the dstask repository itself. The dstask repository
-is at ~/.dstask by default.
+to revert/rebase/merge on the nib repository itself. The nib repository
+is at ~/.nib by default.
 `
 	case CMD_SYNC:
-		helpStr = `Usage: dstask sync
+		helpStr = `Usage: nib sync
 
 Synchronise with the remote git server. Runs git pull then git push. If there
 are conflicts that cannot be automatically resolved, it is necessary to
-manually resolve them in  ~/.dstask or with the "task git" command.
+manually resolve them in  ~/.nib or with the "task git" command.
 `
 	case CMD_GIT:
-		helpStr = `Usage: dstask git <args...>
-Example: dstask git status
+		helpStr = `Usage: nib git <args...>
+Example: nib git status
 
-Run the given git command inside ~/.dstask
+Run the given git command inside ~/.nib
 `
 	case CMD_SHOW_RESOLVED:
-		helpStr = `Usage: dstask resolved
+		helpStr = `Usage: nib resolved
 
 Show a report of last 1000 resolved tasks.
 `
@@ -200,14 +200,14 @@ Show a report of stored template tasks with an optional filter.
 
 Bypass the current context with --`
 	case CMD_OPEN:
-		helpStr = `Usage: dstask <id...> open
+		helpStr = `Usage: nib <id...> open
 
 Open all URLs found within the task summary and notes. If you commonly have
 dozens of tabs open to later action, convert them into tasks to open later with
 this command.
 `
 	case CMD_SHOW_PROJECTS:
-		helpStr = `Usage: dstask show-projects
+		helpStr = `Usage: nib show-projects
 
 Show a breakdown of projects with progress information
 `
@@ -216,30 +216,30 @@ Show a breakdown of projects with progress information
 		CMD_PRINT_ZSH_COMPLETION,
 		CMD_PRINT_FISH_COMPLETION,
 		CMD_PRINT_NU_COMPLETION:
-		helpStr = `Usage: dstask [bash|zsh|fish|nushell]-completion
+		helpStr = `Usage: nib [bash|zsh|fish|nushell]-completion
 
 Print a shell completion script to stdout. The script can be sourced from
 a user's .bashrc, .zshrc, fish.config, or nushell config.nu like so:
 
-    source <(dstask bash-completion)
-    source <(dstask zsh-completion)
-    dstask fish-completion | source
-    dstask nushell-completion | save -f ~/.config/nushell/completions/dstask.nu
-    # then add ` + "`source ~/.config/nushell/completions/dstask.nu`" + ` to your config.nu
+    source <(nib bash-completion)
+    source <(nib zsh-completion)
+    nib fish-completion | source
+    nib nushell-completion | save -f ~/.config/nushell/completions/nib.nu
+    # then add ` + "`source ~/.config/nushell/completions/nib.nu`" + ` to your config.nu
 `
 	default:
-		helpStr = `Usage: dstask [id...] <cmd> [task summary/filter]
+		helpStr = `Usage: nib [id...] <cmd> [task summary/filter]
 
 Where [task summary] is text with tags/project/priority specified. Tags are
 specified with + (or - for filtering) eg: +work. The project is specified with
-a project:g prefix eg: project:dstask -- no quotes. Priorities run from P3
+a project:g prefix eg: project:nib -- no quotes. Priorities run from P3
 (low), P2 (default) to P1 (high) and P0 (critical). Text can also be specified
 for a substring search of description and notes.
 
 Cmd and IDs can be swapped, multiple IDs can be specified for batch
 operations.
 
-run "dstask help <cmd>" for command specific help.
+run "nib help <cmd>" for command specific help.
 
 Add -- to ignore the current context. / can be used when adding tasks to note
 any words after.
@@ -275,7 +275,7 @@ fish-completion     : Print fish completion script to stdout
 zsh-completion      : Print zsh completion script to stdout
 nushell-completion  : Print nushell completion script to stdout
 help                : Get help on any command or show this message
-version             : Show dstask version information
+version             : Show nib version information
 
 Colour Key:
 `

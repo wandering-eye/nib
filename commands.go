@@ -20,7 +20,7 @@ func CommandAdd(conf Config, ctx, query Query) error {
 		return errors.New("cannot use date filter with add command")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func CommandDone(conf Config, ctx, query Query) error {
 		return errors.New("no ID(s) specified")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func CommandDone(conf Config, ctx, query Query) error {
 	for _, id := range query.IDs {
 		task := ts.MustGetByID(id)
 		task.Status = STATUS_RESOLVED
-		task.Resolved = time.Now()
+		task.Resolved = time.Now().UTC()
 
 		if query.Text != "" {
 			task.Notes += "\n" + query.Text
@@ -146,7 +146,7 @@ func CommandEdit(conf Config, ctx, query Query) error {
 		return errors.New("no ID(s) specified")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -193,10 +193,10 @@ func CommandHelp(args []string) {
 // they're already completed.
 func CommandLog(conf Config, ctx, query Query) error {
 	if query.Text == "" {
-		return errors.New("task description required")
+		return UsageError("task description required")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func CommandLog(conf Config, ctx, query Query) error {
 		Project:      query.Project,
 		Priority:     query.Priority,
 		Due:          query.Due,
-		Resolved:     time.Now(),
+		Resolved:     time.Now().UTC(),
 	}
 	task = ts.MustLoadTask(task)
 	ts.SavePendingChanges()
@@ -227,7 +227,7 @@ func CommandModify(conf Config, ctx, query Query) error {
 		return errors.New("no operations specified")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -235,12 +235,12 @@ func CommandModify(conf Config, ctx, query Query) error {
 	if len(query.IDs) == 0 {
 		ts.Filter(ctx)
 
-		if StdoutIsTTY() {
-			ConfirmOrAbort(
-				"no IDs specified. Apply to all %d tasks in current ctx?",
-				len(ts.Tasks()),
-			)
-		}
+		// Confirmation is not gated on a terminal check: piped, dstask skipped
+		// the prompt and silently modified every task in the context.
+		ConfirmOrAbort(
+			"no IDs specified. Apply to all %d tasks in current ctx?",
+			len(ts.Tasks()),
+		)
 
 		for _, task := range ts.Tasks() {
 			task.Modify(query)
@@ -264,7 +264,7 @@ func CommandModify(conf Config, ctx, query Query) error {
 // CommandNext prints the unresolved tasks associated with the current context.
 // This is the default command.
 func CommandNext(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,13 @@ func CommandNext(conf Config, ctx, query Query) error {
 	}
 
 	ts.Filter(query)
-	if err := ts.DisplayByNext(ctx, true); err != nil {
+
+	// An ID names one specific task, so naming nothing is an error. A filter
+	// matching nothing is not: an empty result is a legitimate answer.
+	if len(query.IDs) > 0 && len(ts.Tasks()) == 0 {
+		return NoMatchError("no task with id %v", query.IDs)
+	}
+	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
 	}
 
@@ -297,7 +303,7 @@ func CommandNote(conf Config, ctx, query Query) error {
 		return errors.New("operators not valid in this context")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -313,7 +319,9 @@ func CommandNote(conf Config, ctx, query Query) error {
 			ts.MustUpdateTask(task)
 			ts.SavePendingChanges()
 			MustGitCommit(conf.Repo, "Edit note %s", task)
-		} else if StdoutIsTTY() {
+		} else {
+			// No text means the editor, never a fall-through to printing the
+			// note. Printing here is what made `note <id>` a silent read.
 			task.Notes = string(
 				MustEditBytes(
 					[]byte(task.Notes),
@@ -323,10 +331,6 @@ func CommandNote(conf Config, ctx, query Query) error {
 			ts.MustUpdateTask(task)
 			ts.SavePendingChanges()
 			MustGitCommit(conf.Repo, "Edit note %s", task)
-		} else {
-			if err := WriteStdout([]byte(task.Notes)); err != nil {
-				ExitFail("Could not write to stdout: %v", err)
-			}
 		}
 	}
 
@@ -343,7 +347,7 @@ func CommandOpen(conf Config, ctx, query Query) error {
 		return errors.New("operators not valid in this context")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -374,7 +378,7 @@ func CommandRemove(conf Config, ctx, query Query) error {
 		return errors.New("operators not valid in this context")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -384,12 +388,10 @@ func CommandRemove(conf Config, ctx, query Query) error {
 		fmt.Println(task)
 	}
 
-	if StdoutIsTTY() {
-		ConfirmOrAbort(
-			"\nThe above %d task(s) will be deleted without checking subtasks. Continue?",
-			len(query.IDs),
-		)
-	}
+	ConfirmOrAbort(
+		"\nThe above %d task(s) will be deleted without checking subtasks. Continue?",
+		len(query.IDs),
+	)
 
 	for _, id := range query.IDs {
 		task := ts.MustGetByID(id)
@@ -413,7 +415,7 @@ func CommandRemove(conf Config, ctx, query Query) error {
 
 // CommandShowActive prints a list of active tasks.
 func CommandShowActive(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -421,7 +423,7 @@ func CommandShowActive(conf Config, ctx, query Query) error {
 	query = query.Merge(ctx)
 	ts.Filter(query)
 	ts.FilterByStatus(STATUS_ACTIVE)
-	if err := ts.DisplayByNext(ctx, true); err != nil {
+	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
 	}
 
@@ -435,12 +437,12 @@ func CommandShowProjects(conf Config, ctx, query Query) error {
 		return errors.New("query/context not supported for show-projects")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, true)
+	ts, err := LoadTaskSet(conf.Repo, true)
 	if err != nil {
 		return err
 	}
 
-	if err := ts.DisplayProjects(); err != nil {
+	if err := ts.DisplayProjects(query.JSON); err != nil {
 		return err
 	}
 
@@ -449,14 +451,14 @@ func CommandShowProjects(conf Config, ctx, query Query) error {
 
 // CommandShowOpen prints a list of open tasks without truncation.
 func CommandShowOpen(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
 
 	query = query.Merge(ctx)
 	ts.Filter(query)
-	if err := ts.DisplayByNext(ctx, false); err != nil {
+	if err := ts.DisplayByNext(ctx, false, query.JSON); err != nil {
 		return err
 	}
 
@@ -465,7 +467,7 @@ func CommandShowOpen(conf Config, ctx, query Query) error {
 
 // CommandShowPaused prints a list of paused tasks.
 func CommandShowPaused(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -473,7 +475,7 @@ func CommandShowPaused(conf Config, ctx, query Query) error {
 	query = query.Merge(ctx)
 	ts.Filter(query)
 	ts.FilterByStatus(STATUS_PAUSED)
-	if err := ts.DisplayByNext(ctx, true); err != nil {
+	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
 	}
 
@@ -482,7 +484,7 @@ func CommandShowPaused(conf Config, ctx, query Query) error {
 
 // CommandShowResolved prints a list of resolved tasks.
 func CommandShowResolved(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, true)
+	ts, err := LoadTaskSet(conf.Repo, true)
 	if err != nil {
 		return err
 	}
@@ -492,14 +494,13 @@ func CommandShowResolved(conf Config, ctx, query Query) error {
 	ts.UnHide()
 	ts.Filter(query)
 	ts.FilterByStatus(STATUS_RESOLVED)
-	ts.DisplayByWeek()
 
-	return nil
+	return ts.DisplayByWeek(query.JSON)
 }
 
 // CommandShowTags prints a list of all tags associated with non-resolved tasks.
 func CommandShowTags(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -516,7 +517,7 @@ func CommandShowTags(conf Config, ctx, query Query) error {
 
 // CommandShowTemplates show a list of task templates.
 func CommandShowTemplates(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -526,7 +527,7 @@ func CommandShowTemplates(conf Config, ctx, query Query) error {
 
 	query = query.Merge(ctx)
 	ts.Filter(query)
-	if err := ts.DisplayByNext(ctx, true); err != nil {
+	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
 	}
 
@@ -540,13 +541,13 @@ func CommandShowUnorganised(conf Config, ctx, query Query) error {
 		return errors.New("query/context not used for show-unorganised")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
 
 	ts.FilterOrganised()
-	if err := ts.DisplayByNext(ctx, true); err != nil {
+	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
 	}
 
@@ -556,7 +557,7 @@ func CommandShowUnorganised(conf Config, ctx, query Query) error {
 // CommandStart marks an existing task as started, by ID. If no ID is
 // specified, it creates a new task and starts it.
 func CommandStart(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -608,7 +609,7 @@ func CommandStart(conf Config, ctx, query Query) error {
 
 // CommandStop marks a task as stopped.
 func CommandStop(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}
@@ -647,7 +648,7 @@ func CommandSync(repoPath string) error {
 
 // CommandTemplate creates a new task template.
 func CommandTemplate(conf Config, ctx, query Query) error {
-	ts, err := LoadTaskSet(conf.Repo, conf.IDsFile, false)
+	ts, err := LoadTaskSet(conf.Repo, false)
 	if err != nil {
 		return err
 	}

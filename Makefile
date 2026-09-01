@@ -1,6 +1,6 @@
 .PHONY: release clean install
-dist/dstask: clean
-	go build -o dist/dstask cmd/dstask/main.go
+dist/nib: clean
+	go build -o dist/nib cmd/nib/main.go
 	go build -o dist/dstask-import cmd/dstask-import/main.go
 
 release:
@@ -10,7 +10,7 @@ clean:
 	rm -rf dist
 
 install:
-	cp dist/dstask /usr/local/bin
+	cp dist/nib /usr/local/bin
 	cp dist/dstask-import /usr/local/bin
 
 test:

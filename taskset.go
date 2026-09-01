@@ -5,10 +5,10 @@ package dstask
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,8 +21,10 @@ type TaskSet struct {
 	tasksByUUID map[string]*Task
 
 	// program metadata
-	idsFilePath string
-	repoPath    string
+	// nextKey is the committed high water mark: keys are handed out from here
+	// and never reissued.
+	nextKey  int
+	repoPath string
 }
 
 type Project struct {
@@ -41,17 +43,18 @@ type Project struct {
 }
 
 // LoadTaskSet constructs a TaskSet from a repo path..
-func LoadTaskSet(repoPath, idsFilePath string, includeResolved bool) (*TaskSet, error) {
+func LoadTaskSet(repoPath string, includeResolved bool) (*TaskSet, error) {
 	// Initialise an empty TaskSet
 	var ts TaskSet
 	ts.tasksByUUID = make(map[string]*Task)
 	ts.tasksByID = make(map[int]*Task)
 
-	ts.idsFilePath = idsFilePath
 	ts.repoPath = repoPath
 
 	// Construct our options struct by calling our passed-in TaskSetOpt functions.
-	ids := LoadIds(idsFilePath)
+	ts.nextKey = loadNextKey(repoPath)
+
+	// Keys live in the records now, not in an untracked cache.
 
 	var statuses []string
 
@@ -88,18 +91,41 @@ func LoadTaskSet(repoPath, idsFilePath string, includeResolved bool) (*TaskSet, 
 
 			path := filepath.Join(dir, finfo.Name())
 
-			t, err := unmarshalTask(path, finfo, ids, status)
+			// A record that cannot be read is not skipped. Logging and
+			// carrying on meant a command listed fewer tasks than the store
+			// held and still reported success.
+			t, err := unmarshalTask(path, finfo, status)
 			if err != nil {
-				log.Printf("error loading task: %v\n", err)
-
-				continue
+				return nil, fmt.Errorf("%s: %w", finfo.Name(), err)
 			}
 
 			if _, err := ts.LoadTask(t); err != nil {
-				log.Printf("error loading task: %v\n", err)
-
-				continue
+				return nil, fmt.Errorf("%s: %w", finfo.Name(), err)
 			}
+		}
+	}
+
+	// Records written by dstask carry no key. Assign them here, after every
+	// record is loaded, so the keys already on disk are known and cannot be
+	// handed out twice.
+	assigned, err := ts.assignMissingKeys()
+	if err != nil {
+		return nil, err
+	}
+
+	// Write them immediately. Holding them in memory only meant the next
+	// command recomputed them over whatever it happened to load, so a key
+	// could name a different record each run -- the very thing a durable key
+	// is for. This happens once, on the first load of a dstask store.
+	if assigned {
+		ts.SavePendingChanges()
+
+		// A no-op here means the keys written match what is already committed,
+		// which is nothing to record rather than something to report.
+		err := GitCommit(repoPath, "Assign durable keys to existing records")
+		var commandErr CommandError
+		if err != nil && (!errors.As(err, &commandErr) || commandErr.Code != EXIT_NO_OP) {
+			return nil, err
 		}
 	}
 
@@ -186,6 +212,10 @@ func (ts *TaskSet) MustLoadTask(task Task) Task {
 // LoadTask adds a task to the TaskSet, but only if it has a new uuid or no uuid.
 // Return annotated task.
 func (ts *TaskSet) LoadTask(task Task) (Task, error) {
+	// A task arriving without a UUID is being created rather than read off
+	// disk, which is the moment its key is allocated.
+	isNew := task.UUID == ""
+
 	task.Normalise()
 
 	if task.UUID == "" {
@@ -196,30 +226,30 @@ func (ts *TaskSet) LoadTask(task Task) (Task, error) {
 		return Task{}, err
 	}
 
+	if isNew && task.ID == 0 {
+		task.ID = ts.nextKey
+		ts.nextKey++
+		task.WritePending = true
+	}
+
 	if ts.tasksByUUID[task.UUID] != nil {
 		// load tasks, do not overwrite
 		// TODO ??? (maybe return a nil pointer instead?)
 		return Task{}, nil
 	}
 
-	// remove ID if already taken
+	// A key claimed twice means two records disagree about who owns it, which
+	// no amount of guessing here can resolve. Say so rather than quietly
+	// renumbering one of them, which is what recycling used to do.
 	if task.ID > 0 && ts.tasksByID[task.ID] != nil {
-		task.ID = 0
-	}
-
-	// pick one if task isn't resolved and ID isn't there
-	if task.ID == 0 && task.Status != STATUS_RESOLVED {
-		for id := 1; id <= MAX_TASKS_OPEN; id++ {
-			if ts.tasksByID[id] == nil {
-				task.ID = id
-
-				break
-			}
-		}
+		return Task{}, fmt.Errorf(
+			"key %d is claimed by both %s and %s; keys must be unique",
+			task.ID, ts.tasksByID[task.ID].UUID, task.UUID,
+		)
 	}
 
 	if task.Created.IsZero() {
-		task.Created = time.Now()
+		task.Created = time.Now().UTC()
 		task.WritePending = true
 	}
 
@@ -265,12 +295,8 @@ func (ts *TaskSet) UpdateTask(task Task) error {
 		return errors.New("refusing to resolve task with incomplete tasklist")
 	}
 
-	if task.Status == STATUS_RESOLVED {
-		task.ID = 0
-	}
-
 	if task.Status == STATUS_RESOLVED && task.Resolved.IsZero() {
-		task.Resolved = time.Now()
+		task.Resolved = time.Now().UTC()
 	}
 
 	task.WritePending = true
@@ -307,7 +333,7 @@ func (ts *TaskSet) FilterOrganised() {
 func (ts *TaskSet) MustGetByID(id int) Task {
 	task, err := ts.GetByID(id)
 	if err != nil {
-		ExitFail(err.Error())
+		ExitError(err)
 	}
 
 	return task
@@ -315,7 +341,10 @@ func (ts *TaskSet) MustGetByID(id int) Task {
 
 func (ts *TaskSet) GetByID(id int) (Task, error) {
 	if ts.tasksByID[id] == nil {
-		return Task{}, fmt.Errorf("no open task with ID %v exists", id)
+		// A ref naming nothing is its own outcome, distinct from a filter that
+		// matched nothing. Every command that resolves a ref reports it the same
+		// way rather than flattening it to a generic failure.
+		return Task{}, NoMatchError("no open task with id %v exists", id)
 	}
 
 	return *ts.tasksByID[id], nil
@@ -420,26 +449,53 @@ func (ts *TaskSet) NumTotal() int {
 // TODO return files that have been added/deleted/modified/renamed so they can
 // be passed to git add for performance, instead of doing git add .
 func (ts *TaskSet) SavePendingChanges() {
-	ids := make(IdsMap, len(ts.Tasks()))
-
 	for _, task := range ts.tasks {
 		if task.WritePending {
 			task.SaveToDisk(ts.repoPath)
 		}
+	}
 
-		if task.ID > 0 {
-			ids[task.UUID] = task.ID
+	// The high water mark is committed alongside the records, so a key that has
+	// been issued is never issued again -- not after a resolve, not in a fresh
+	// clone. dstask kept ids in an untracked cache specifically to avoid merge
+	// conflicts between clones. That trade is reversed here: a conflict on this
+	// file is visible and fixable, whereas renumbering the whole store because
+	// a cache file went missing was neither.
+	ts.mustSaveNextKey()
+}
+
+// nextKeyPath is the committed high water mark.
+func nextKeyPath(repoPath string) string {
+	return filepath.Join(repoPath, "next-key")
+}
+
+// loadNextKey reads the high water mark. A store that has never had one starts
+// at 1, which is also the case for a plain dstask repository.
+func loadNextKey(repoPath string) int {
+	data, err := os.ReadFile(nextKeyPath(repoPath))
+	if err != nil {
+		return 1
+	}
+
+	key, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || key < 1 {
+		return 1
+	}
+
+	return key
+}
+
+func (ts *TaskSet) mustSaveNextKey() {
+	next := ts.nextKey
+	for _, task := range ts.tasks {
+		if task.ID >= next {
+			next = task.ID + 1
 		}
 	}
 
-	// saving generally only happens when tasks are mutated. This is OK, and
-	// important. Generally the ID assignment process is deterministic such
-	// that a DB is not required. However, if tasks are listed and then tasks
-	// are closed or created, it can have a ripple effect such that it is
-	// possible for every ID to change. Therefore, tasks must retain their IDs
-	// locally. This replaced a system where tasks recorded their IDs, which
-	// can create merge conflicts in some (uncommon) cases.
-	ids.Save(ts.idsFilePath)
+	if err := os.WriteFile(nextKeyPath(ts.repoPath), []byte(strconv.Itoa(next)+"\n"), 0o600); err != nil {
+		ExitFail("could not save the key high water mark: %v", err)
+	}
 }
 
 type SortByDirection string
@@ -448,3 +504,120 @@ const (
 	Ascending  SortByDirection = "ascending"
 	Descending SortByDirection = "descending"
 )
+
+// assignMissingKeys gives a key to every record that has none. The order comes
+// from the whole store rather than from whatever this command loaded, because a
+// key that depends on which statuses were read is the defect this replaced: the
+// same record would answer to a different number depending on the command.
+func (ts *TaskSet) assignMissingKeys() (bool, error) {
+	var keyless bool
+
+	next := ts.nextKey
+
+	for _, task := range ts.tasks {
+		if task.ID > 0 {
+			if task.ID >= next {
+				next = task.ID + 1
+			}
+
+			continue
+		}
+
+		keyless = true
+	}
+
+	ts.nextKey = next
+
+	if !keyless {
+		return false, nil
+	}
+
+	order, highest, err := keylessOrderAcrossStore(ts.repoPath)
+	if err != nil {
+		return false, err
+	}
+
+	if highest >= ts.nextKey {
+		ts.nextKey = highest + 1
+	}
+
+	for _, task := range ts.tasks {
+		if task.ID > 0 {
+			continue
+		}
+
+		position, known := order[task.UUID]
+		if !known {
+			return false, fmt.Errorf("%s has no key and was not found in the store", task.UUID)
+		}
+
+		task.ID = ts.nextKey + position
+		task.WritePending = true
+		ts.tasksByID[task.ID] = task
+	}
+
+	ts.nextKey += len(order)
+
+	return true, nil
+}
+
+// keylessOrderAcrossStore walks every status directory and returns the position
+// each keyless record takes in creation order, plus the highest key already in
+// use. Reading the whole store is the price of a numbering that does not depend
+// on the command; it only happens while records still lack keys.
+func keylessOrderAcrossStore(repoPath string) (map[string]int, int, error) {
+	type record struct {
+		uuid    string
+		created time.Time
+	}
+
+	var (
+		keyless []record
+		highest int
+	)
+
+	for _, status := range ALL_STATUSES {
+		entries, err := os.ReadDir(filepath.Join(repoPath, status))
+		if err != nil {
+			continue
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			path := filepath.Join(repoPath, status, entry.Name())
+
+			task, err := unmarshalTask(path, entry, status)
+			if err != nil {
+				return nil, 0, fmt.Errorf("%s: %w", entry.Name(), err)
+			}
+
+			if task.ID > 0 {
+				if task.ID > highest {
+					highest = task.ID
+				}
+
+				continue
+			}
+
+			keyless = append(keyless, record{uuid: task.UUID, created: task.Created.UTC()})
+		}
+	}
+
+	sort.SliceStable(keyless, func(first, second int) bool {
+		if !keyless[first].created.Equal(keyless[second].created) {
+			return keyless[first].created.Before(keyless[second].created)
+		}
+
+		return keyless[first].uuid < keyless[second].uuid
+	})
+
+	order := make(map[string]int, len(keyless))
+	for position, entry := range keyless {
+		order[entry.uuid] = position
+	}
+
+	return order, highest, nil
+}

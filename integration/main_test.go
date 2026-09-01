@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/naggie/dstask"
@@ -35,41 +36,72 @@ func TestMain(m *testing.M) {
 func compile(outputPath string) error {
 	// We expect to execute in the ./integration directory, and we will output
 	// our test binary there.
-	cmd := exec.Command("go", "build", "-o", outputPath, "../cmd/dstask/main.go")
+	cmd := exec.Command("go", "build", "-o", outputPath, "../cmd/nib/main.go")
 
 	return cmd.Run()
 }
 
 func binaryPath() string {
 	if runtime.GOOS == "windows" {
-		return "./dstask.exe"
+		return "./nib.exe"
 	}
 
-	return "./dstask"
+	return "./nib"
 }
 
 // Create a callable closure that will run our test binary against a
 // particular repository path. Any variables set in the environment will be
-// passed to the test subprocess.
 func testCmd(repoPath string) func(args ...string) ([]byte, *exec.ExitError, bool) {
 	return func(args ...string) ([]byte, *exec.ExitError, bool) {
-		cmd := exec.Command(binaryPath(), args...)
-		env := os.Environ()
-		cmd.Env = append(env, "DSTASK_GIT_REPO="+repoPath)
-		output, err := cmd.Output()
-		exitErr := &exec.ExitError{}
-		ok := errors.As(err, &exitErr)
+		// These tests assert on task fields, so they ask for the machine
+		// format. Output no longer changes shape when piped, so a test that
+		// wants JSON has to say so.
+		return runBinary(repoPath, append(args, "--json")...)
+	}
+}
 
-		if !ok {
-			if err != nil {
-				return output, nil, false
-			}
+// testTableCmd runs the binary without --json, so the default human table is
+// exercised rather than only the machine format.
+func testTableCmd(repoPath string) func(args ...string) ([]byte, *exec.ExitError, bool) {
+	return func(args ...string) ([]byte, *exec.ExitError, bool) {
+		return runBinary(repoPath, args...)
+	}
+}
 
-			return output, nil, true
+// testConfirmingCmd answers the confirmation prompt. A bulk change with no IDs
+// asks before touching every task in the context, and end of input counts as a
+// decline, so a test that means to go ahead has to say so.
+func testConfirmingCmd(repoPath string) func(args ...string) ([]byte, *exec.ExitError, bool) {
+	return func(args ...string) ([]byte, *exec.ExitError, bool) {
+		return runBinaryWithInput(repoPath, "y\n", append(args, "--json")...)
+	}
+}
+
+func runBinary(repoPath string, args ...string) ([]byte, *exec.ExitError, bool) {
+	return runBinaryWithInput(repoPath, "", args...)
+}
+
+func runBinaryWithInput(repoPath, input string, args ...string) ([]byte, *exec.ExitError, bool) {
+	cmd := exec.Command(binaryPath(), args...)
+	env := os.Environ()
+	cmd.Env = append(env, "DSTASK_GIT_REPO="+repoPath)
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
+	}
+
+	output, err := cmd.Output()
+	exitErr := &exec.ExitError{}
+	ok := errors.As(err, &exitErr)
+
+	if !ok {
+		if err != nil {
+			return output, nil, false
 		}
 
-		return output, exitErr, exitErr.Success()
+		return output, nil, true
 	}
+
+	return output, exitErr, exitErr.Success()
 }
 
 // Sets an environment variable, and returns a callable closure to unset it.

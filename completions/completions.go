@@ -73,7 +73,7 @@ func Completions(conf dstask.Config, args []string, ctx dstask.Query) {
 		dstask.CMD_SHOW_RESOLVED,
 		dstask.CMD_SHOW_TEMPLATES,
 	}, query.Cmd) {
-		ts, err := dstask.LoadTaskSet(conf.Repo, conf.IDsFile, false)
+		ts, err := dstask.LoadTaskSet(conf.Repo, false)
 		if err != nil {
 			log.Printf("completions error: %v\n", err)
 

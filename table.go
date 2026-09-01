@@ -137,14 +137,16 @@ func (t *Table) Render() {
 			trimmed := FixStr(cells[i], w)
 
 			// support ' / ' markup -- show notes faded. Insert ANSI escape
-			// formatting, ensuring reset to original colour for given row.
-			if strings.Contains(trimmed, " "+NOTE_MODE_KEYWORD+" ") {
+			// formatting, ensuring reset to original colour for given row. The
+			// marker itself is only swapped for an escape when there is one to
+			// swap it for, otherwise the separator would simply disappear.
+			if COLOUR_ENABLED && strings.Contains(trimmed, " "+NOTE_MODE_KEYWORD+" ") {
 				trimmed = strings.Replace(
 					FixStr(cells[i], w+2),
 					" "+NOTE_MODE_KEYWORD+" ",
-					fmt.Sprintf("\033[38;5;%dm ", FG_NOTE),
+					sgr(fmt.Sprintf("38;5;%d", FG_NOTE))+" ",
 					1,
-				) + fmt.Sprintf("\033[38;5;%dm", fg)
+				) + sgr(fmt.Sprintf("38;5;%d", fg))
 			}
 
 			cells[i] = trimmed
@@ -153,6 +155,6 @@ func (t *Table) Render() {
 		line := strings.Join(cells, strings.Repeat(" ", TABLE_COL_GAP))
 
 		// print style, line then reset
-		fmt.Printf("\033[%d;38;5;%d;48;5;%dm%s\033[0m\n", mode, fg, bg, line)
+		fmt.Println(colour(fmt.Sprintf("%d;38;5;%d;48;5;%d", mode, fg, bg), line))
 	}
 }

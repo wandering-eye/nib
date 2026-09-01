@@ -18,9 +18,9 @@ before:
     - go mod vendor
 
 builds:
-  - id: dstask
-    binary: dstask
-    main: cmd/dstask/main.go
+  - id: nib
+    binary: nib
+    main: cmd/nib/main.go
     env:
       - CGO_ENABLED=0
     ldflags:

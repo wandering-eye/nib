@@ -2,23 +2,72 @@ package dstask
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/gofrs/uuid"
-	"github.com/mattn/go-isatty"
 )
 
+// CommandError carries the exit code a failure deserves, so a command can
+// report misuse or a missing reference without knowing how the program exits.
+type CommandError struct {
+	Code    int
+	Message string
+}
+
+func (err CommandError) Error() string {
+	return err.Message
+}
+
+// UsageError describes a command that could not be understood: an unknown
+// UsageError describes a command that could not be understood, as distinct from
+// one that was understood and failed.
+func UsageError(format string, a ...any) error {
+	return CommandError{Code: EXIT_USAGE, Message: fmt.Sprintf(format, a...)}
+}
+
+// NoMatchError describes a reference -- typically an ID -- that matched nothing.
+func NoMatchError(format string, a ...any) error {
+	return CommandError{Code: EXIT_NO_MATCH, Message: fmt.Sprintf(format, a...)}
+}
+
+// NoOpError describes a request that was understood but changed nothing.
+func NoOpError(format string, a ...any) error {
+	return CommandError{Code: EXIT_NO_OP, Message: fmt.Sprintf(format, a...)}
+}
+
+// ExitError prints err and exits with the code it carries, or 1 if it carries
+// none.
+func ExitError(err error) {
+	var commandErr CommandError
+	if errors.As(err, &commandErr) {
+		exitWith(commandErr.Code, "%s", err)
+	}
+
+	exitWith(EXIT_FAILURE, "%s", err)
+}
+
 func ExitFail(format string, a ...any) {
-	fmt.Fprintf(os.Stderr, "\033[31m"+format+"\033[0m\n", a...)
-	os.Exit(1)
+	exitWith(EXIT_FAILURE, format, a...)
+}
+
+// ExitUsage exits on a command line that could not be understood.
+func ExitUsage(format string, a ...any) {
+	exitWith(EXIT_USAGE, format, a...)
+}
+
+func exitWith(code int, format string, a ...any) {
+	fmt.Fprintln(os.Stderr, sgr("31")+fmt.Sprintf(format, a...)+sgr("0"))
+	os.Exit(code)
 }
 
 func ConfirmOrAbort(format string, a ...any) {
@@ -28,7 +77,9 @@ func ConfirmOrAbort(format string, a ...any) {
 
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		panic(err)
+		// No answer available, so nothing was agreed to. Treating end of input
+		// as a decline is what keeps an unattended run from proceeding.
+		exitWith(EXIT_NO_OP, "aborted")
 	}
 
 	// Normalize input: remove CR/LF/whitespace and compare in lowercase
@@ -37,7 +88,8 @@ func ConfirmOrAbort(format string, a ...any) {
 		return
 	}
 
-	ExitFail("Aborted.")
+	// declining leaves everything as it was
+	exitWith(EXIT_NO_OP, "aborted")
 }
 
 func MustGetUUID4String() string {
@@ -72,8 +124,8 @@ func IsValidStatus(status string) bool {
 func ParseDueDateArg(dueStr string) (dateFilter string, dueDate time.Time) {
 	parts := strings.SplitN(dueStr, ":", 2)
 	if len(parts) != 2 {
-		ExitFail("Invalid due query format: " + dueStr + "\n" +
-			"Expected format: due:YYYY-MM-DD, due:MM-DD, due:DD, due:next-monday, due:today, etc.")
+		ExitUsage("invalid due query format: " + dueStr + "\n" +
+			"expected format: due:YYYY-MM-DD, due:MM-DD, due:DD, due:next-monday, due:today, etc.")
 	}
 	if parts[1] == "overdue" {
 		dateFilter = "before"
@@ -87,8 +139,8 @@ func ParseDueDateArg(dueStr string) (dateFilter string, dueDate time.Time) {
 		dateFilters := map[string]struct{}{"after": {}, "before": {}, "on": {}, "in": {}}
 		_, ok := dateFilters[dateFilter]
 		if !ok && dateFilter != "" {
-			ExitFail("Invalid date filter format: " + dateFilter + "\n" +
-				"Valid filters are: after, before, on, in")
+			ExitUsage("invalid date filter format: " + dateFilter + "\n" +
+				"valid filters are: after, before, on, in")
 		}
 
 	} else {
@@ -269,12 +321,15 @@ func DeduplicateStrings(s []string) []string {
 	return s[:j]
 }
 
-// MustGetTermSize is implemented per-OS in util_unix.go and util_windows.go
+// TerminalWidth is the width tables are rendered at. $COLUMNS is honoured when
+// it holds a positive number, otherwise the maximum readable width is used.
+// Stdout is never inspected, so redirecting output cannot change the result.
+func TerminalWidth() int {
+	if columns, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil && columns > 0 {
+		return columns
+	}
 
-func StdoutIsTTY() bool {
-	isTTY := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-
-	return isTTY || FAKE_PTY
+	return TABLE_MAX_WIDTH
 }
 
 func WriteStdout(data []byte) error {

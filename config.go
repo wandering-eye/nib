@@ -13,7 +13,6 @@ type Config struct {
 	// Path to the dstask local state file. State will differ between machines
 	StateFile string
 	// Path to the ids file
-	IDsFile string
 	// An unparsed context string, provided via DSTASK_CONTEXT
 	CtxFromEnvVar string
 }
@@ -29,10 +28,12 @@ func NewConfig() Config {
 		// Fallback: use $HOME if present
 		home = os.Getenv("HOME")
 	}
+	// The store keeps its existing location. nib reads a dstask repository as
+	// it stands, so moving the default would strand the data rather than
+	// upgrade it. DSTASK_GIT_REPO still works for anyone who already set it.
 	defaultRepo := filepath.Join(home, ".dstask")
-	conf.Repo = getEnv("DSTASK_GIT_REPO", defaultRepo)
+	conf.Repo = getEnv("NIB_GIT_REPO", getEnv("DSTASK_GIT_REPO", defaultRepo))
 	conf.StateFile = filepath.Join(conf.Repo, ".git", "dstask", "state.bin")
-	conf.IDsFile = filepath.Join(conf.Repo, ".git", "dstask", "ids.bin")
 
 	return conf
 }
