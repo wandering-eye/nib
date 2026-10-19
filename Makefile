@@ -22,7 +22,7 @@ install:
 
 test:
 	go test -v ./...
-	./integrationtest.sh | cat  # cat -- no tty, no confirmations
+	./integrationtest.sh
 
 lint:
 	golangci-lint run
