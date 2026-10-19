@@ -1,10 +1,14 @@
-.PHONY: release clean install
-dist/nib: clean
-	go build -o dist/nib cmd/nib/main.go
-	go build -o dist/dstask-import cmd/dstask-import/main.go
+.PHONY: clean install
+VERSION ?= $(shell git describe --tags --always --dirty)
+GIT_COMMIT ?= $(shell git rev-parse HEAD)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS = -X github.com/wandering-eye/nib.VERSION=$(VERSION) \
+	-X github.com/wandering-eye/nib.GIT_COMMIT=$(GIT_COMMIT) \
+	-X github.com/wandering-eye/nib.BUILD_DATE=$(BUILD_DATE)
 
-release:
-	./do-release.sh
+dist/nib: clean
+	go build -ldflags "$(LDFLAGS)" -o dist/nib cmd/nib/main.go
+	go build -ldflags "$(LDFLAGS)" -o dist/dstask-import cmd/dstask-import/main.go
 
 clean:
 	rm -rf dist
@@ -15,7 +19,7 @@ install:
 
 test:
 	go test -v ./...
-	./integrationtest.sh | cat  # cat -- no tty, no confirmations
+	./integrationtest.sh
 
 lint:
 	golangci-lint run

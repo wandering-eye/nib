@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/naggie/dstask"
+	dstask "github.com/wandering-eye/nib"
 	"gopkg.in/yaml.v2"
 )
 

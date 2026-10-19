@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/naggie/dstask"
+	dstask "github.com/wandering-eye/nib"
 )
 
 // Do imports a taskwarrior database.

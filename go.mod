@@ -1,4 +1,4 @@
-module github.com/naggie/dstask
+module github.com/wandering-eye/nib
 
 go 1.23.4
 

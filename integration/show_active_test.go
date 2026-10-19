@@ -3,8 +3,8 @@ package integration
 import (
 	"testing"
 
-	"github.com/naggie/dstask"
 	"github.com/stretchr/testify/assert"
+	dstask "github.com/wandering-eye/nib"
 )
 
 func TestShowActive(t *testing.T) {

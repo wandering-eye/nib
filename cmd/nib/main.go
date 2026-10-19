@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/naggie/dstask"
-	"github.com/naggie/dstask/completions"
+	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib/completions"
 )
 
 func main() {
@@ -46,7 +46,10 @@ func main() {
 
 	conf := dstask.NewConfig()
 
-	// Taken before the repository is created: two first invocations would
+	// The lock file needs the directory, so the create prompt comes first.
+	dstask.PrepareRepoDirectory(conf.Repo)
+
+	// Taken before the repository is initialised: two first invocations would
 	// otherwise race to init it. Held for the whole command so a read, the key
 	// it allocates and the commit that follows are one step. The kernel holds
 	// it, so a process exiting releases it.
@@ -57,7 +60,7 @@ func main() {
 
 	defer unlock()
 
-	dstask.EnsureRepoExists(conf.Repo)
+	dstask.InitRepoIfMissing(conf.Repo)
 
 	// Load state for getting and setting ctx
 	state := dstask.LoadState(conf.StateFile)

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/naggie/dstask"
 	"github.com/stretchr/testify/assert"
+	dstask "github.com/wandering-eye/nib"
 )
 
 func getTestDate(year int, month time.Month, day int) time.Time {

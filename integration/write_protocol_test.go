@@ -133,3 +133,21 @@ func TestRepeatedNoOpDoesNotCommit(test *testing.T) {
 	assert.Equal(test, strings.TrimSpace(string(before)), strings.TrimSpace(string(after)),
 		"a no-op must not create a commit")
 }
+
+// Removing the last task in a status directory stages a deletion that leaves
+// the directory untracked, so the change has to be checked against the paths
+// that were staged, not the ones left afterwards.
+func TestRemovingTheLastTaskCommitsTheDeletion(test *testing.T) {
+	repo, cleanup := makeDstaskRepo(test)
+	defer cleanup()
+
+	output, exiterr, success := testCmd(repo)("add", "only task")
+	assertProgramResult(test, output, exiterr, success)
+
+	output, exiterr, success = testConfirmingCmd(repo)("remove", "1")
+	assertProgramResult(test, output, exiterr, success)
+
+	tracked, err := exec.Command("git", "-C", repo, "ls-tree", "-r", "--name-only", "HEAD").Output()
+	assert.NoError(test, err)
+	assert.NotContains(test, string(tracked), "pending/")
+}

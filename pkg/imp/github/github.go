@@ -7,11 +7,11 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/naggie/dstask"
-	"github.com/naggie/dstask/pkg/imp"
-	"github.com/naggie/dstask/pkg/imp/config"
 	"github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
+	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib/pkg/imp"
+	"github.com/wandering-eye/nib/pkg/imp/config"
 	"golang.org/x/oauth2"
 )
 
