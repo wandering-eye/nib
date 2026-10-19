@@ -117,7 +117,12 @@ func GitCommit(repoPath, format string, a ...any) error {
 		)
 	}
 
-	arguments := append([]string{"add", "--"}, gitPaths(repoPath)...)
+	// Resolved once: staging the deletion of a directory's last file untracks
+	// that directory, and recomputing afterwards would leave it out of the
+	// check below and report a real change as nothing.
+	taskPaths := gitPaths(repoPath)
+
+	arguments := append([]string{"add", "--"}, taskPaths...)
 	if _, err := RunGitCmdWithOutput(repoPath, arguments...); err != nil {
 		return fmt.Errorf("failed to add changes to repo: %w", err)
 	}
@@ -125,7 +130,7 @@ func GitCommit(repoPath, format string, a ...any) error {
 	// Scoped to the task paths: an unstaged edit to some other tracked file
 	// would otherwise look like a change, skip the no-op result, and turn a
 	// command that did nothing into a commit failure.
-	noChange := append([]string{"diff", "--cached", "--quiet", "HEAD", "--"}, gitPaths(repoPath)...)
+	noChange := append([]string{"diff", "--cached", "--quiet", "HEAD", "--"}, taskPaths...)
 	if _, noChangeErr := RunGitCmdWithOutput(repoPath, noChange...); hadHead && noChangeErr == nil {
 		return NoOpError("nothing changed")
 	}
