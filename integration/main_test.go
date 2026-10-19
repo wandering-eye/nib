@@ -83,8 +83,7 @@ func runBinary(repoPath string, args ...string) ([]byte, *exec.ExitError, bool) 
 
 func runBinaryWithInput(repoPath, input string, args ...string) ([]byte, *exec.ExitError, bool) {
 	cmd := exec.Command(binaryPath(), args...)
-	env := os.Environ()
-	cmd.Env = append(env, "DSTASK_GIT_REPO="+repoPath)
+	cmd.Env = repoEnvironment(repoPath)
 	if input != "" {
 		cmd.Stdin = strings.NewReader(input)
 	}
@@ -102,6 +101,13 @@ func runBinaryWithInput(repoPath, input string, args ...string) ([]byte, *exec.E
 	}
 
 	return output, exitErr, exitErr.Success()
+}
+
+// repoEnvironment points both repository variables at the test repository, so
+// neither one exported in the developer's shell can reach their real store.
+// NIB_GIT_REPO wins over DSTASK_GIT_REPO, and the last duplicate entry wins.
+func repoEnvironment(repoPath string) []string {
+	return append(os.Environ(), "NIB_GIT_REPO="+repoPath, "DSTASK_GIT_REPO="+repoPath)
 }
 
 // Sets an environment variable, and returns a callable closure to unset it.

@@ -35,7 +35,7 @@ func TestOutputDoesNotDependOnDestination(test *testing.T) {
 	defer func() { _ = os.Remove(file.Name()) }()
 
 	command := exec.Command(binaryPath(), "next")
-	command.Env = append(os.Environ(), "DSTASK_GIT_REPO="+repo)
+	command.Env = repoEnvironment(repo)
 	command.Stdout = file
 	assert.NoError(test, command.Run())
 	assert.NoError(test, file.Close())
