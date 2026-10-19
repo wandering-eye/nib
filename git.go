@@ -203,26 +203,43 @@ func MustGetRepoPath(repoPath, directory, file string) string {
 	return path.Join(dir, file)
 }
 
-// EnsureRepoExists checks for the existence of a dstask repository, or exits the program.
-func EnsureRepoExists(repoPath string) {
+func isRepoInitialised(repoPath string) bool {
+	_, err := os.Stat(path.Join(repoPath, ".git"))
+
+	return !os.IsNotExist(err)
+}
+
+// PrepareRepoDirectory asks before creating a repository that does not exist
+// yet and creates its directory, which is where the repository lock lives.
+// Nothing is created if the user declines. Initialising is left to
+// InitRepoIfMissing, under the lock.
+func PrepareRepoDirectory(repoPath string) {
 	_, err := exec.LookPath("git")
 	if err != nil {
 		ExitFail("git required, please install")
 	}
 
-	gitDotGitLocation := path.Join(repoPath, ".git")
-	if _, err := os.Stat(gitDotGitLocation); os.IsNotExist(err) {
-		ConfirmOrAbort("could not find a nib repository at %s -- create?", repoPath)
-
-		err = os.Mkdir(repoPath, 0o700)
-		if err != nil {
-			ExitFail("Failed to create directory in git repository")
-		}
-
-		MustRunGitCmd(repoPath, "init")
-		fmt.Println("\nAdd a remote repository with:\n\n\tdstask git remote add origin <repo>")
-		fmt.Println() // must be a separate call else compiler complains of redundant \n
+	if isRepoInitialised(repoPath) {
+		return
 	}
+
+	ConfirmOrAbort("could not find a nib repository at %s -- create?", repoPath)
+
+	if err := os.MkdirAll(repoPath, 0o700); err != nil {
+		ExitFail("Failed to create directory in git repository")
+	}
+}
+
+// InitRepoIfMissing runs git init unless another invocation already has. It is
+// called under the repository lock, so of two first runs exactly one inits.
+func InitRepoIfMissing(repoPath string) {
+	if isRepoInitialised(repoPath) {
+		return
+	}
+
+	MustRunGitCmd(repoPath, "init")
+	fmt.Println("\nAdd a remote repository with:\n\n\tdstask git remote add origin <repo>")
+	fmt.Println() // must be a separate call else compiler complains of redundant \n
 }
 
 // Sync performs a git pull, and then a git push. If any conflicts are encountered,
