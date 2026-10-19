@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/naggie/dstask"
 	"github.com/stretchr/testify/assert"
+	dstask "github.com/wandering-eye/nib"
 )
 
 func TestShowResolved(t *testing.T) {

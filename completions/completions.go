@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/naggie/dstask"
+	dstask "github.com/wandering-eye/nib"
 )
 
 // Completions ...

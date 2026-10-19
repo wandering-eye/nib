@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/naggie/dstask"
-	"github.com/naggie/dstask/completions"
+	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib/completions"
 )
 
 func main() {

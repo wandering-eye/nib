@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/naggie/dstask"
-	"github.com/naggie/dstask/pkg/imp/config"
-	"github.com/naggie/dstask/pkg/imp/github"
-	"github.com/naggie/dstask/pkg/imp/tw"
 	"github.com/sirupsen/logrus"
+	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib/pkg/imp/config"
+	"github.com/wandering-eye/nib/pkg/imp/github"
+	"github.com/wandering-eye/nib/pkg/imp/tw"
 )
 
 // getEnv returns an env var's value, or a default.

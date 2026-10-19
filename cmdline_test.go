@@ -108,7 +108,7 @@ func TestParseQuery(t *testing.T) {
 		},
 		// first priority should have precedence, subsequent priorities should
 		// just be part of the description
-		// see https://github.com/naggie/dstask/issues/120 for context
+		// see https://github.com/wandering-eye/nib/issues/120 for context
 		{
 			[]string{"add", "P1", "P2", "P3"},
 			Query{

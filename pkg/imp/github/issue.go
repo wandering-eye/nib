@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/naggie/dstask"
+	dstask "github.com/wandering-eye/nib"
 )
 
 // IssueData is a compact way to represent an issue

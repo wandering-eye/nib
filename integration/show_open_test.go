@@ -3,7 +3,7 @@ package integration
 import (
 	"testing"
 
-	"github.com/naggie/dstask"
+	dstask "github.com/wandering-eye/nib"
 	"gotest.tools/assert"
 )
 
