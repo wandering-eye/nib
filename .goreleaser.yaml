@@ -58,6 +58,7 @@ homebrew_casks:
       owner: wandering-eye
       name: homebrew-tap
       branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     # The binaries are not signed or notarized; without this, Gatekeeper blocks them.
     hooks:
       post:

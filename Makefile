@@ -1,4 +1,4 @@
-.PHONY: release clean install
+.PHONY: clean install
 VERSION ?= $(shell git describe --tags --always --dirty)
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -9,9 +9,6 @@ LDFLAGS = -X github.com/wandering-eye/nib.VERSION=$(VERSION) \
 dist/nib: clean
 	go build -ldflags "$(LDFLAGS)" -o dist/nib cmd/nib/main.go
 	go build -ldflags "$(LDFLAGS)" -o dist/dstask-import cmd/dstask-import/main.go
-
-release:
-	mise exec -- goreleaser release --clean
 
 clean:
 	rm -rf dist
