@@ -105,6 +105,14 @@ Requirements:
 
 # Installation
 
+On macOS, install with Homebrew. This installs both `nib` and `dstask-import`:
+
+```sh
+brew install wandering-eye/tap/nib
+```
+
+Otherwise:
+
 1. Copy the executable (from the [releases page][releases]) to somewhere in your PATH.
    - Linux/macOS: name it `dstask` and mark it executable (e.g. `/usr/local/bin/`).
    - Windows: use `dstask.exe` and place it in a directory on `PATH` (e.g. `%USERPROFILE%\bin`).
@@ -422,4 +430,4 @@ is meaningful as having no smartphone-based control is a blocker for a lot of pe
 
 Yes! <https://www.linux-magazine.com/Issues/2021/246/dstask> :-)
 
-[releases]: https://github.com/naggie/dstask/releases
+[releases]: https://github.com/wandering-eye/nib/releases
