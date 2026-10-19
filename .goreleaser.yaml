@@ -1,60 +1,46 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
-
 version: 2
+
+project_name: nib
 
 before:
   hooks:
-    # You may remove this if you don't use go modules.
     - go mod tidy
-    # you may remove this if you don't need go generate
-    - go generate ./...
-    # you may remove this if you don't need go generate
-    - go mod vendor
 
 builds:
   - id: nib
     binary: nib
-    main: cmd/nib/main.go
+    main: ./cmd/nib
     env:
       - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
     ldflags:
-      - s -w
-      - X \"github.com/naggie/dstask.GIT_COMMIT={{.Commit}}\"
-      - X \"github.com/naggie/dstask.VERSION={{.Version}}\"
-      - X \"github.com/naggie/dstask.BUILD_DATE={{.Date}}\"
-    targets:
-      - linux_arm_v5
-      - linux_amd64
-      - darwin_arm64
-      - darwin_amd64
+      - -s -w
+      - -X github.com/wandering-eye/nib.VERSION={{ .Version }}
+      - -X github.com/wandering-eye/nib.GIT_COMMIT={{ .FullCommit }}
+      - -X github.com/wandering-eye/nib.BUILD_DATE={{ .Date }}
 
   - id: dstask-import
     binary: dstask-import
-    main: cmd/dstask-import/main.go
+    main: ./cmd/dstask-import
     env:
       - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
     ldflags:
-      - s -w
-      - X \"github.com/naggie/dstask.GIT_COMMIT={{.Commit}}\"
-      - X \"github.com/naggie/dstask.VERSION={{.Version}}\"
-      - X \"github.com/naggie/dstask.BUILD_DATE={{.Date}}\"
-    targets:
-      - linux_arm_v5
-      - linux_amd64
-      - darwin_arm64
-      - darwin_amd64
+      - -s -w
+      - -X github.com/wandering-eye/nib.VERSION={{ .Version }}
+      - -X github.com/wandering-eye/nib.GIT_COMMIT={{ .FullCommit }}
+      - -X github.com/wandering-eye/nib.BUILD_DATE={{ .Date }}
 
 archives:
-  - formats: [binary]
+  - ids: [nib, dstask-import]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
-  name_template: checksums.sha256
+  name_template: checksums.txt
 
 changelog:
   sort: asc
@@ -62,3 +48,21 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+homebrew_casks:
+  - name: nib
+    binaries: [nib, dstask-import]
+    homepage: https://github.com/wandering-eye/nib
+    description: Terminal TODO manager with git-based sync and markdown notes per task
+    repository:
+      owner: wandering-eye
+      name: homebrew-tap
+      branch: main
+    # The binaries are not signed or notarized; without this, Gatekeeper blocks them.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/nib"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/dstask-import"]
+          end

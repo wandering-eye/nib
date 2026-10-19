@@ -1,3 +1,4 @@
 [tools]
 go = "1.23.4"
 golangci-lint = "2.1.6"
+goreleaser = "2.18.3"
