@@ -148,21 +148,11 @@ func (ts *TaskSet) UnHide() {
 	}
 }
 
+// SortByCreated orders by creation time, then UUID, so tasks created in the
+// same instant still come out the same way whichever directory they were read
+// from.
 func (ts *TaskSet) SortByCreated(dir SortByDirection) {
-	switch dir {
-	case Ascending:
-		// Oldest first
-		sort.SliceStable(
-			ts.tasks,
-			func(i, j int) bool { return ts.tasks[i].Created.Before(ts.tasks[j].Created) },
-		)
-	case Descending:
-		// Newest first
-		sort.SliceStable(
-			ts.tasks,
-			func(i, j int) bool { return ts.tasks[i].Created.After(ts.tasks[j].Created) },
-		)
-	}
+	ts.sortByTime(dir, func(task *Task) time.Time { return task.Created })
 }
 
 func (ts *TaskSet) SortByPriority(dir SortByDirection) {
@@ -183,20 +173,23 @@ func (ts *TaskSet) SortByPriority(dir SortByDirection) {
 }
 
 func (ts *TaskSet) SortByResolved(dir SortByDirection) {
-	switch dir {
-	case Ascending:
-		// Oldest resolved first
-		sort.SliceStable(
-			ts.tasks,
-			func(i, j int) bool { return ts.tasks[i].Resolved.Before(ts.tasks[j].Resolved) },
-		)
-	case Descending:
-		// Newest resolved first
-		sort.SliceStable(
-			ts.tasks,
-			func(i, j int) bool { return ts.tasks[i].Resolved.After(ts.tasks[j].Resolved) },
-		)
-	}
+	ts.sortByTime(dir, func(task *Task) time.Time { return task.Resolved })
+}
+
+func (ts *TaskSet) sortByTime(dir SortByDirection, timeOf func(*Task) time.Time) {
+	sort.SliceStable(ts.tasks, func(first, second int) bool {
+		firstTime, secondTime := timeOf(ts.tasks[first]), timeOf(ts.tasks[second])
+
+		if !firstTime.Equal(secondTime) {
+			if dir == Descending {
+				return firstTime.After(secondTime)
+			}
+
+			return firstTime.Before(secondTime)
+		}
+
+		return ts.tasks[first].UUID < ts.tasks[second].UUID
+	})
 }
 
 // MustLoadTask is the same as LoadTask, except it exits on error.
