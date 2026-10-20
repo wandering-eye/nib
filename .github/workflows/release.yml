@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to tag on main and release, for example v0.2.0
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,6 +22,24 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+
+      # A tag pushed with GITHUB_TOKEN does not start another run, so the push
+      # trigger above does not fire a second release for it.
+      - name: Tag main
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Run this workflow from main, not $GITHUB_REF" >&2
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must look like v1.2.3, got $VERSION" >&2
+            exit 1
+          fi
+          git tag "$VERSION"
+          git push origin "refs/tags/$VERSION"
 
       - name: Set up toolchain from mise.toml
         uses: jdx/mise-action@v5.2.1
