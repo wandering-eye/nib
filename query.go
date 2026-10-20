@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 // main task data structures
 
@@ -81,8 +81,8 @@ func (query Query) String() string {
 
 func (query Query) PrintContextDescription() {
 	var envVarNotification string
-	if os.Getenv("DSTASK_CONTEXT") != "" {
-		envVarNotification = " (set by DSTASK_CONTEXT)"
+	if os.Getenv("NIB_CONTEXT") != "" {
+		envVarNotification = " (set by NIB_CONTEXT)"
 	}
 
 	if query.String() != "" {

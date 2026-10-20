@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 )
 
 // Completions ...
-func Completions(conf dstask.Config, args []string, ctx dstask.Query) {
+func Completions(conf nib.Config, args []string, ctx nib.Query) {
 	// given the entire user's command line arguments as the arguments for
 	// this cmd, suggest possible candidates for the last arg.
 	// see the relevant shell completion bindings in this repository for
@@ -22,15 +22,15 @@ func Completions(conf dstask.Config, args []string, ctx dstask.Query) {
 
 	var prefix string
 
-	// drop dstask _completions dstask to allow parsing what is on actual
+	// drop nib _completions nib to allow parsing what is on actual
 	// prompt
 	if len(args) > 3 {
 		originalArgs = args[3:]
 	}
 
-	// args are dstask _completions <user command line>
+	// args are nib _completions <user command line>
 	// parse command line as normal to set rules
-	query := dstask.ParseQuery(originalArgs...)
+	query := nib.ParseQuery(originalArgs...)
 
 	// No command and OK to specify command (to run or help)
 	// Note that techically we should only specify commands as available
@@ -45,35 +45,35 @@ func Completions(conf dstask.Config, args []string, ctx dstask.Query) {
 		query.Priority == "" &&
 		query.Template == 0 &&
 		!query.IgnoreContext &&
-		(query.Cmd == dstask.CMD_HELP || query.Cmd == "") {
-		for _, cmd := range dstask.ALL_CMDS {
+		(query.Cmd == nib.CMD_HELP || query.Cmd == "") {
+		for _, cmd := range nib.ALL_CMDS {
 			if !strings.HasPrefix(cmd, "_") {
 				completions = append(completions, cmd)
 			}
 		}
 	}
 
-	if dstask.StrSliceContains([]string{
+	if nib.StrSliceContains([]string{
 		"",
-		dstask.CMD_NEXT,
-		dstask.CMD_ADD,
-		dstask.CMD_REMOVE,
-		dstask.CMD_LOG,
-		dstask.CMD_START,
-		dstask.CMD_STOP,
-		dstask.CMD_DONE,
-		dstask.CMD_RESOLVE,
-		dstask.CMD_CONTEXT,
-		dstask.CMD_MODIFY,
-		dstask.CMD_SHOW_NEXT,
-		dstask.CMD_SHOW_PROJECTS,
-		dstask.CMD_SHOW_ACTIVE,
-		dstask.CMD_SHOW_PAUSED,
-		dstask.CMD_SHOW_OPEN,
-		dstask.CMD_SHOW_RESOLVED,
-		dstask.CMD_SHOW_TEMPLATES,
+		nib.CMD_NEXT,
+		nib.CMD_ADD,
+		nib.CMD_REMOVE,
+		nib.CMD_LOG,
+		nib.CMD_START,
+		nib.CMD_STOP,
+		nib.CMD_DONE,
+		nib.CMD_RESOLVE,
+		nib.CMD_CONTEXT,
+		nib.CMD_MODIFY,
+		nib.CMD_SHOW_NEXT,
+		nib.CMD_SHOW_PROJECTS,
+		nib.CMD_SHOW_ACTIVE,
+		nib.CMD_SHOW_PAUSED,
+		nib.CMD_SHOW_OPEN,
+		nib.CMD_SHOW_RESOLVED,
+		nib.CMD_SHOW_TEMPLATES,
 	}, query.Cmd) {
-		ts, err := dstask.LoadTaskSet(conf.Repo, false)
+		ts, err := nib.LoadTaskSet(conf.Repo, false)
 		if err != nil {
 			log.Printf("completions error: %v\n", err)
 
@@ -83,25 +83,25 @@ func Completions(conf dstask.Config, args []string, ctx dstask.Query) {
 		// trying to change context, context ignore is on, or modify
 		// command is being completed
 		if !query.IgnoreContext &&
-			query.Cmd != dstask.CMD_CONTEXT &&
-			query.Cmd != dstask.CMD_MODIFY {
+			query.Cmd != nib.CMD_CONTEXT &&
+			query.Cmd != nib.CMD_MODIFY {
 			ts.Filter(ctx)
 		}
 
 		// templates
-		if query.Cmd == dstask.CMD_ADD {
+		if query.Cmd == nib.CMD_ADD {
 			for _, task := range ts.Tasks() {
-				if task.Status == dstask.STATUS_TEMPLATE {
+				if task.Status == nib.STATUS_TEMPLATE {
 					completions = append(completions, "template:"+strconv.Itoa(task.ID))
 				}
 			}
 		}
 
 		// priorities
-		completions = append(completions, dstask.PRIORITY_CRITICAL)
-		completions = append(completions, dstask.PRIORITY_HIGH)
-		completions = append(completions, dstask.PRIORITY_NORMAL)
-		completions = append(completions, dstask.PRIORITY_LOW)
+		completions = append(completions, nib.PRIORITY_CRITICAL)
+		completions = append(completions, nib.PRIORITY_HIGH)
+		completions = append(completions, nib.PRIORITY_NORMAL)
+		completions = append(completions, nib.PRIORITY_LOW)
 
 		// projects
 		for _, project := range ts.GetProjects() {
@@ -122,7 +122,7 @@ func Completions(conf dstask.Config, args []string, ctx dstask.Query) {
 
 	for _, completion := range completions {
 		if strings.HasPrefix(completion, prefix) &&
-			!dstask.StrSliceContains(originalArgs, completion) {
+			!nib.StrSliceContains(originalArgs, completion) {
 			fmt.Println(completion)
 		}
 	}

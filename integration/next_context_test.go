@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 )
 
 func TestSettingTagContext(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -29,7 +29,7 @@ func TestSettingTagContext(t *testing.T) {
 	output, exiterr, success = program("next")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	tasks = unmarshalTaskArray(t, output)
 	assert.Equal(t, "two", tasks[0].Summary, "setting +two as a context")
@@ -45,7 +45,7 @@ func TestSettingTagContext(t *testing.T) {
 }
 
 func TestSettingTagAndProjectContext(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -62,7 +62,7 @@ func TestSettingTagAndProjectContext(t *testing.T) {
 	output, exiterr, success = program("next")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	tasks = unmarshalTaskArray(t, output)
 	assert.Equal(t, "two", tasks[0].Summary, "setting project:beta as a context")
@@ -78,7 +78,7 @@ func TestSettingTagAndProjectContext(t *testing.T) {
 }
 
 func TestContextFromEnvVar(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -93,17 +93,17 @@ func TestContextFromEnvVar(t *testing.T) {
 	assertProgramResult(t, output, exiterr, success)
 
 	// override context with an env var
-	unsetEnv := setEnv("DSTASK_CONTEXT", "+one +alpha")
+	unsetEnv := setEnv("NIB_CONTEXT", "+one +alpha")
 
-	t.Logf("DSTASK_CONTEXT=%s", os.Getenv("DSTASK_CONTEXT"))
+	t.Logf("NIB_CONTEXT=%s", os.Getenv("NIB_CONTEXT"))
 
 	output, exiterr, success = program("next")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	tasks = unmarshalTaskArray(t, output)
-	assert.Equal(t, "one", tasks[0].Summary, "'+one +alpha' context set by DSTASK_CONTEXT ")
+	assert.Equal(t, "one", tasks[0].Summary, "'+one +alpha' context set by NIB_CONTEXT ")
 
 	// unset the context override, so we expect to use the on-disk context
 	unsetEnv()

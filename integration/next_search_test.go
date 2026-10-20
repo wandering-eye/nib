@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 )
 
 func TestNextSearchWord(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -23,7 +23,7 @@ func TestNextSearchWord(t *testing.T) {
 	output, exiterr, success = program("somethingRandom")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	tasks = unmarshalTaskArray(t, output)
 	assert.Empty(t, tasks, "no tasks should be returned for a missing search term")
@@ -44,7 +44,7 @@ func TestNextSearchWord(t *testing.T) {
 }
 
 func TestNextSearchCaseInsensitive(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -59,7 +59,7 @@ func TestNextSearchCaseInsensitive(t *testing.T) {
 	output, exiterr, success = program("TWO")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	tasks = unmarshalTaskArray(t, output)
 	assert.Len(t, tasks, 1, `string "TWO" should find task summary containing "two"`)

@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// dstask kept the id map in an untracked .git/dstask/ids.bin, assigned at load
+// Earlier versions kept the id map in an untracked file under .git, assigned at load
 // by scanning for the lowest free integer. Deleting that one file renumbered
 // the whole store, and a clone started from nothing. The key belongs to the
 // record.
 func TestKeysArePersistedInTheRecord(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -32,7 +32,7 @@ func TestKeysArePersistedInTheRecord(test *testing.T) {
 }
 
 func TestKeysSurviveAClone(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -66,7 +66,7 @@ func TestKeysSurviveAClone(test *testing.T) {
 
 // Resolving used to blank the id and release it to the next task created.
 func TestAResolvedKeyIsNeverReissued(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -100,7 +100,7 @@ func TestAResolvedKeyIsNeverReissued(test *testing.T) {
 // Two records claiming one key cannot be reconciled by guessing, so it is
 // reported rather than silently renumbered.
 func TestADuplicateKeyIsRefused(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -122,11 +122,11 @@ func TestADuplicateKeyIsRefused(test *testing.T) {
 	assert.NotEqual(test, 0, exiterr.ExitCode())
 }
 
-// A store written by dstask carries no keys. Whatever numbering it is given
+// A store written before keys were recorded carries none. Whatever numbering it is given
 // must not let one key name two different records, or `done 8` is ambiguous
 // depending on which command the user looked at first.
 func TestKeylessStoreNumbersEveryRecordUniquely(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -143,7 +143,7 @@ func TestKeylessStoreNumbersEveryRecordUniquely(test *testing.T) {
 		assertProgramResult(test, output, exiterr, success)
 	}
 
-	// Strip the keys, leaving the store as dstask would have written it.
+	// Strip the keys, leaving the store as an earlier version would have written it.
 	for _, status := range []string{"pending", "resolved"} {
 		matches, err := filepath.Glob(filepath.Join(repo, status, "*.yml"))
 		assert.NoError(test, err)
@@ -164,7 +164,7 @@ func TestKeylessStoreNumbersEveryRecordUniquely(test *testing.T) {
 		}
 	}
 
-	// A dstask store has no counter either, so remove it: with one present the
+	// Such a store has no counter either, so remove it: with one present the
 	// numbering starts high enough to hide an ordering mistake.
 	assert.NoError(test, os.Remove(filepath.Join(repo, "next-key")))
 
@@ -189,7 +189,7 @@ func TestKeylessStoreNumbersEveryRecordUniquely(test *testing.T) {
 // next command recomputed them and a record could answer to a different
 // number each run. The first load of a keyless store writes them down.
 func TestMigratingLoadPersistsKeys(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -204,7 +204,7 @@ func TestMigratingLoadPersistsKeys(test *testing.T) {
 		assertProgramResult(test, output, exiterr, success)
 	}
 
-	// Rewrite the store the way dstask left it: no keys, no counter, and the
+	// Rewrite the store the way an earlier version left it: no keys, no counter, and the
 	// summaries changed so re-derived keys cannot coincide with the old ones.
 	for _, status := range []string{"pending", "resolved"} {
 		matches, err := filepath.Glob(filepath.Join(repo, status, "*.yml"))

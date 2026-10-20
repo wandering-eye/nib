@@ -7,7 +7,7 @@ import (
 )
 
 func TestNextByIDIndex(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -26,7 +26,7 @@ func TestNextByIDIndex(t *testing.T) {
 }
 
 func TestNextByIDIndexOutsideContext(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)

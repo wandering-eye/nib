@@ -1,6 +1,6 @@
-package dstask
+package nib
 
-// this file represents the interface to the state specific to the PC dstask is
+// this file represents the interface to the state specific to the PC nib is
 // on is stored. This is very minimal at the moment -- just the current
 // context. It will probably remain that way.
 
@@ -18,12 +18,6 @@ type State struct {
 	// of some commands.
 	Context Query
 }
-
-// Persistent DB of UUID -> ID to ensure that tasks have a persistent ID
-// local to this machine for their lifetime. This is important to ensure
-// the correct task is targeted between operations. Historically, each task
-// stored its preferred ID but this resulted in merge conflicts when 2
-// machines were using dstask concurrently on the same repository.
 
 // Save serialises State to disk as gob binary data.
 func (state State) Save(stateFilePath string) {

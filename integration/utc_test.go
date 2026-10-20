@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// dstask wrote whatever offset the machine happened to be in, so one store
+// Earlier versions wrote whatever offset the machine happened to be in, so one store
 // ended up holding a mix of Z and -07:00 and sorting it as text put records in
 // the wrong order. What is stored is UTC; local time is input and display.
 func TestStoredTimestampsAreUTC(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	restore := setEnv("TZ", "America/Los_Angeles")
@@ -65,10 +65,10 @@ func TestStoredTimestampsAreUTC(test *testing.T) {
 // The same instant must land on disk identically whatever zone the machine is
 // in, otherwise two clones disagree about ordering.
 func TestStorageDoesNotDependOnTheMachineTimezone(test *testing.T) {
-	west, cleanupWest := makeDstaskRepo(test)
+	west, cleanupWest := makeRepo(test)
 	defer cleanupWest()
 
-	east, cleanupEast := makeDstaskRepo(test)
+	east, cleanupEast := makeRepo(test)
 	defer cleanupEast()
 
 	restore := setEnv("TZ", "America/Los_Angeles")
@@ -97,7 +97,7 @@ func TestStorageDoesNotDependOnTheMachineTimezone(test *testing.T) {
 // date a day out for anyone east of UTC: "tomorrow" rendered as "today".
 func TestDueDateRendersInTheReadersDay(test *testing.T) {
 	for _, zone := range []string{"Asia/Tokyo", "Pacific/Kiritimati", "America/Los_Angeles", "UTC"} {
-		repo, cleanup := makeDstaskRepo(test)
+		repo, cleanup := makeRepo(test)
 
 		restore := setEnv("TZ", zone)
 

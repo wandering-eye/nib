@@ -9,7 +9,7 @@ import (
 // TODO
 
 func TestTaskShowTemplates(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)

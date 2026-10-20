@@ -3,12 +3,12 @@ package integration
 import (
 	"testing"
 
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 	"gotest.tools/assert"
 )
 
 func TestShowOpen(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -22,7 +22,7 @@ func TestShowOpen(t *testing.T) {
 	output, exiterr, success = program("show-open")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	// Oldest tasks come first
 	tasks = unmarshalTaskArray(t, output)

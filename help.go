@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 import (
 	"fmt"
@@ -144,7 +144,7 @@ would then have the tag "work" applied automatically.
 
 To reset to no context, run: nib context none
 
-Context can also be set with the environment variable DSTASK_CONTEXT. If set, 
+Context can also be set with the environment variable NIB_CONTEXT. If set, 
 this context string will override the context stored on disk.
 `
 	case CMD_MODIFY:

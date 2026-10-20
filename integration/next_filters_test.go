@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 )
 
 func TestNextTagFilter(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -25,7 +25,7 @@ func TestNextTagFilter(t *testing.T) {
 	output, exiterr, success = program("next", "+one")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	tasks = unmarshalTaskArray(t, output)
 	assert.Equal(t, "one", tasks[0].Summary)
@@ -38,7 +38,7 @@ func TestNextTagFilter(t *testing.T) {
 }
 
 func TestNextMultipleTagFilter(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -61,7 +61,7 @@ func TestNextMultipleTagFilter(t *testing.T) {
 }
 
 func TestNextProjectFilter(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)

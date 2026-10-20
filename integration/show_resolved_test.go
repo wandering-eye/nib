@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 )
 
 func TestShowResolved(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -29,7 +29,7 @@ func TestShowResolved(t *testing.T) {
 	output, exiterr, success = program("show-resolved")
 	assertProgramResult(t, output, exiterr, success)
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 
 	tasks = unmarshalTaskArray(t, output)
 	assert.Equal(t, "one", tasks[0].Summary, "one should be resolved")

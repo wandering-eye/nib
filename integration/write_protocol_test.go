@@ -15,7 +15,7 @@ import (
 // along inside a commit that claimed to be a task change. Refusing is louder
 // than quietly excluding it: the user finds out their work is in the way.
 func TestStagedWorkOutsideTaskPathsIsRefused(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -45,7 +45,7 @@ func TestStagedWorkOutsideTaskPathsIsRefused(test *testing.T) {
 // A status change empties the old directory, and that deletion has to be
 // committed or the record exists under two statuses at once.
 func TestAStatusChangeCommitsTheDeletion(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -76,7 +76,7 @@ func TestAStatusChangeCommitsTheDeletion(test *testing.T) {
 // Two creates racing produced two records claiming one key, after which every
 // command including a plain list refused to load the store.
 func TestConcurrentCreatesIssueUniqueKeys(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	const creates = 20
@@ -111,7 +111,7 @@ func TestConcurrentCreatesIssueUniqueKeys(test *testing.T) {
 // A commit that did not move HEAD is not a commit, and an operation that
 // changed nothing is not a success.
 func TestRepeatedNoOpDoesNotCommit(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -138,7 +138,7 @@ func TestRepeatedNoOpDoesNotCommit(test *testing.T) {
 // the directory untracked, so the change has to be checked against the paths
 // that were staged, not the ones left afterwards.
 func TestRemovingTheLastTaskCommitsTheDeletion(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	output, exiterr, success := testCmd(repo)("add", "only task")
