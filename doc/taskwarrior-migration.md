@@ -1,9 +1,5 @@
 # Moving from Taskwarrior
 
-## Importing data
-
-Please see the [dstask-import tw instructions](dstask-import.md#taskwarrior) to import taskwarrior tasks.
-
 ## Using dstask
 
 Commands and syntax are deliberately very similar to taskwarrior. Here are the exceptions:

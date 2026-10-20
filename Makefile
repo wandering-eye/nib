@@ -8,14 +8,12 @@ LDFLAGS = -X github.com/wandering-eye/nib.VERSION=$(VERSION) \
 
 dist/nib: clean
 	go build -ldflags "$(LDFLAGS)" -o dist/nib cmd/nib/main.go
-	go build -ldflags "$(LDFLAGS)" -o dist/dstask-import cmd/dstask-import/main.go
 
 clean:
 	rm -rf dist
 
 install:
 	cp dist/nib /usr/local/bin
-	cp dist/dstask-import /usr/local/bin
 
 test:
 	go test -v ./...

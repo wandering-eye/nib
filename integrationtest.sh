@@ -94,10 +94,6 @@ echo y | ./nib remove 1
 ./nib template give me some things to do P1 +uniqueTag
 ./nib show-templates +uniqueTag
 
-# test import
-./nib import-tw <etc/taskwarrior-export.json
-./nib next
-
 # test git command pass through
 ./nib git status
 

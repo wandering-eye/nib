@@ -47,7 +47,6 @@ Features:
 - `open` command -- **open URLs found in specified task** (including notes) in the browser
 - zsh/bash completion (including tags and projects in current context) for speed; PowerShell completion on Windows
 - A single statically-linked binary
-- [import tool](doc/dstask-import.md) which can import GitHub issues or taskwarrior tasks.
 
 Non-features:
 
@@ -105,7 +104,7 @@ Requirements:
 
 # Installation
 
-On macOS, install with Homebrew. This installs both `nib` and `dstask-import`:
+On macOS, install with Homebrew:
 
 ```sh
 brew install wandering-eye/tap/nib
