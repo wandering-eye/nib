@@ -2,6 +2,8 @@ package nib
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -59,26 +61,95 @@ func (ts *TaskSet) Resolve(reference string) (Task, error) {
 
 	switch len(matches) {
 	case 0:
+		if !ts.resolvedLoaded {
+			if err := ts.refuseResolvedMatches(reference, digits); err != nil {
+				return Task{}, err
+			}
+		}
+
 		return Task{}, NoMatchError("no task matches %q", reference)
 	case 1:
 		return *matches[0], nil
 	}
 
-	sort.Slice(matches, func(first, second int) bool {
-		return matches[first].UUID < matches[second].UUID
-	})
-
-	length := distinguishingLength(matches)
-
-	candidates := make([]string, 0, len(matches))
-	for _, task := range matches {
-		candidates = append(candidates, fmt.Sprintf("  %s: %s", task.UUID[:length], task.Summary))
-	}
-
 	return Task{}, AmbiguousError(
 		"%q matches %d tasks; give more of the id:\n%s",
-		reference, len(matches), strings.Join(candidates, "\n"),
+		reference, len(matches), listCandidates(matches),
 	)
+}
+
+// refuseResolvedMatches explains a reference that matched no loaded task by
+// looking for it among the resolved ones, which were not loaded. Naming the
+// resolved task keeps "no task matches" from reading as a mistyped id. It is
+// still a reference that matched nothing usable, so the exit code stays
+// EXIT_NO_MATCH.
+func (ts *TaskSet) refuseResolvedMatches(reference, digits string) error {
+	if ts.repoPath == "" {
+		return nil
+	}
+
+	directory := filepath.Join(ts.repoPath, STATUS_RESOLVED)
+
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return nil
+	}
+
+	var matches []*Task
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if len(name) != TASK_FILENAME_LEN ||
+			!strings.HasPrefix(stripReference(name[:36]), digits) {
+			continue
+		}
+
+		task, err := unmarshalTask(filepath.Join(directory, name), entry, STATUS_RESOLVED)
+		if err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		}
+
+		matches = append(matches, &task)
+	}
+
+	switch len(matches) {
+	case 0:
+		return nil
+	case 1:
+		return NoMatchError(
+			"task %s %q is resolved; this command only applies to open tasks",
+			matches[0].ShortUUID(), matches[0].Summary,
+		)
+	}
+
+	return NoMatchError(
+		"%q matches no open task, only %d resolved ones; this command only applies to open tasks:\n%s",
+		reference,
+		len(matches),
+		listCandidates(matches),
+	)
+}
+
+// listCandidates prints one line per task, sorted by UUID and shown long
+// enough that no two lines start alike.
+func listCandidates(tasks []*Task) string {
+	sort.Slice(tasks, func(first, second int) bool {
+		return tasks[first].UUID < tasks[second].UUID
+	})
+
+	length := distinguishingLength(tasks)
+
+	candidates := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		candidate := fmt.Sprintf("  %s: %s", task.UUID[:length], task.Summary)
+		if task.Status == STATUS_RESOLVED {
+			candidate += " (resolved)"
+		}
+
+		candidates = append(candidates, candidate)
+	}
+
+	return strings.Join(candidates, "\n")
 }
 
 // MustResolve is Resolve, exiting with the error's code on failure.

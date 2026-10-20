@@ -21,6 +21,8 @@ type TaskSet struct {
 	tasksByUUID map[string]*Task
 
 	repoPath string
+
+	resolvedLoaded bool
 }
 
 type Project struct {
@@ -45,6 +47,7 @@ func LoadTaskSet(repoPath string, includeResolved bool) (*TaskSet, error) {
 	ts.tasksByUUID = make(map[string]*Task)
 
 	ts.repoPath = repoPath
+	ts.resolvedLoaded = includeResolved
 
 	var statuses []string
 

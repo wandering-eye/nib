@@ -298,7 +298,9 @@ func CommandNext(conf Config, ctx, query Query) error {
 	return nil
 }
 
-// CommandNote edits or prints the markdown note associated with the task.
+// CommandNote edits or appends to the markdown note associated with the task.
+// Resolved tasks are loaded too: recording what was learned after finishing a
+// task is as much a use of notes as anything done while it is open.
 func CommandNote(conf Config, ctx, query Query) error {
 	if len(query.References) == 0 {
 		return errors.New("no task specified")
@@ -308,7 +310,7 @@ func CommandNote(conf Config, ctx, query Query) error {
 		return errors.New("operators not valid in this context")
 	}
 
-	ts, err := LoadTaskSet(conf.Repo, false)
+	ts, err := LoadTaskSet(conf.Repo, true)
 	if err != nil {
 		return err
 	}

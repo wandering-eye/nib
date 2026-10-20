@@ -256,14 +256,14 @@ are identified by UUID, so both simply appear after the next sync.
 
 # Exit codes
 
-| Code | Meaning                                                     |
-| ---- | ----------------------------------------------------------- |
-| 0    | Success, including a filter that matched nothing            |
-| 1    | Failure                                                     |
-| 2    | Usage error, including an ID shorter than 4 characters      |
-| 3    | An ID matched no task                                       |
-| 4    | Nothing changed, or a confirmation was declined             |
-| 5    | An ID matched more than one task; candidates go to stderr   |
+| Code | Meaning                                                                   |
+| ---- | ------------------------------------------------------------------------- |
+| 0    | Success, including a filter that matched nothing                          |
+| 1    | Failure                                                                   |
+| 2    | Usage error, including an ID shorter than 4 characters                    |
+| 3    | An ID matched no task, or only resolved ones where an open task is needed |
+| 4    | Nothing changed, or a confirmation was declined                           |
+| 5    | An ID matched more than one task; candidates go to stderr                 |
 
 # JSON output
 

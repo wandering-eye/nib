@@ -67,6 +67,14 @@ another=$(created add another task)
 ./nib "$readded" done
 ./nib show-resolved
 
+# a resolved task still takes notes, and stays resolved
+./nib "$readded" note learned afterwards
+./nib note "$readded" and later still
+grep -q "learned afterwards" "$NIB_GIT_REPO"/resolved/"$readded"*.yml
+grep -q "and later still" "$NIB_GIT_REPO"/resolved/"$readded"*.yml
+# ... while commands for open tasks refuse it by name
+! ./nib "$readded" start
+
 ./nib show-projects
 
 # -- to remove current context which is +foo
