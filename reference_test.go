@@ -2,6 +2,8 @@ package nib
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,4 +87,98 @@ func TestResolveATooShortPrefixIsUsage(t *testing.T) {
 		require.Error(t, err, reference)
 		assert.Equal(t, EXIT_USAGE, exitCodeOf(t, err), reference)
 	}
+}
+
+// makeStoreWithResolvedTwin writes one open and one resolved task sharing the
+// prefix aaaa1111, and a resolved task alone under dddd4444.
+func makeStoreWithResolvedTwin(t *testing.T) string {
+	t.Helper()
+
+	repo := t.TempDir()
+
+	for _, record := range []struct{ status, uuid, summary string }{
+		{STATUS_PENDING, "aaaa1111-0000-4000-8000-000000000001", "open twin"},
+		{STATUS_RESOLVED, "aaaa1111-0000-4000-8000-000000000002", "resolved twin"},
+		{STATUS_RESOLVED, "dddd4444-0000-4000-8000-000000000004", "finished work"},
+	} {
+		require.NoError(t, os.MkdirAll(filepath.Join(repo, record.status), 0o700))
+		require.NoError(t, writeRecord(
+			filepath.Join(repo, record.status, record.uuid+".yml"),
+			Task{UUID: record.uuid, Summary: record.summary, Priority: PRIORITY_NORMAL},
+		))
+	}
+
+	return repo
+}
+
+func TestResolveNamesAResolvedTaskWhenOnlyOpenTasksAreLoaded(t *testing.T) {
+	ts, err := LoadTaskSet(makeStoreWithResolvedTwin(t), false)
+	require.NoError(t, err)
+
+	_, err = ts.Resolve("dddd4444")
+	require.Error(t, err)
+	assert.Equal(t, EXIT_NO_MATCH, exitCodeOf(t, err))
+	assert.Equal(
+		t,
+		`task dddd4444 "finished work" is resolved; this command only applies to open tasks`,
+		err.Error(),
+	)
+
+	task, err := ts.Resolve("aaaa1111")
+	require.NoError(t, err, "a resolved task that was not loaded never makes a match ambiguous")
+	assert.Equal(t, "open twin", task.Summary)
+
+	_, err = ts.Resolve("eeee")
+	require.Error(t, err)
+	assert.Equal(t, EXIT_NO_MATCH, exitCodeOf(t, err))
+	assert.Equal(t, `no task matches "eeee"`, err.Error())
+}
+
+func TestResolveAcrossEveryStatusMarksResolvedCandidates(t *testing.T) {
+	ts, err := LoadTaskSet(makeStoreWithResolvedTwin(t), true)
+	require.NoError(t, err)
+
+	task, err := ts.Resolve("dddd4444")
+	require.NoError(t, err)
+	assert.Equal(t, STATUS_RESOLVED, task.Status)
+
+	_, err = ts.Resolve("aaaa1111")
+	require.Error(t, err)
+	assert.Equal(t, EXIT_AMBIGUOUS, exitCodeOf(t, err))
+	assert.Contains(t, err.Error(), "aaaa1111-0000-4000-8000-000000000001: open twin\n")
+	assert.Contains(
+		t,
+		err.Error(),
+		"aaaa1111-0000-4000-8000-000000000002: resolved twin (resolved)",
+	)
+}
+
+func TestResolveListsEveryResolvedTaskAPrefixMatches(t *testing.T) {
+	repo := makeStoreWithResolvedTwin(t)
+	require.NoError(t, writeRecord(
+		filepath.Join(repo, STATUS_RESOLVED, "dddd4444-0000-4000-8000-000000000005.yml"),
+		Task{
+			UUID:     "dddd4444-0000-4000-8000-000000000005",
+			Summary:  "also finished",
+			Priority: PRIORITY_NORMAL,
+		},
+	))
+
+	ts, err := LoadTaskSet(repo, false)
+	require.NoError(t, err)
+
+	_, err = ts.Resolve("dddd")
+	require.Error(t, err)
+	assert.Equal(t, EXIT_NO_MATCH, exitCodeOf(t, err))
+	assert.Contains(t, err.Error(), "only 2 resolved ones")
+	assert.Contains(
+		t,
+		err.Error(),
+		"dddd4444-0000-4000-8000-000000000004: finished work (resolved)",
+	)
+	assert.Contains(
+		t,
+		err.Error(),
+		"dddd4444-0000-4000-8000-000000000005: also finished (resolved)",
+	)
 }

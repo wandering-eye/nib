@@ -113,6 +113,7 @@ Usage: nib note <id> <text>
 Example: nib note 1a2b3c4d problem is faulty hardware
 
 Edit or append text to the markdown notes attached to a particular task.
+Resolved tasks can be noted too; their status is left as it is.
 `
 	case CMD_STOP:
 		helpStr = `Usage: nib <id...> stop [text]
@@ -287,7 +288,7 @@ Exit codes:
 0  success, including a filter that matched nothing
 1  failure
 2  usage error, including an ID shorter than 4 characters
-3  an ID matched no task
+3  an ID matched no task, or only resolved ones where an open task is needed
 4  nothing changed, or a confirmation was declined
 5  an ID matched more than one task
 

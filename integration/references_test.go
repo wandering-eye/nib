@@ -113,6 +113,43 @@ func TestReferenceResolutionExitCodes(test *testing.T) {
 	)
 }
 
+// Commands that act on open tasks name a resolved task they were pointed at,
+// rather than claiming nothing matched.
+func TestOpenTaskCommandsRefuseAResolvedTaskByName(test *testing.T) {
+	repo, cleanup := makeRepo(test)
+	defer cleanup()
+
+	writeRecord(test, repo, "resolved", "dddd4444-0000-4000-8000-000000000004", "finished work")
+
+	program := testCmd(repo)
+
+	for _, arguments := range [][]string{
+		{"dddd4444", "done"},
+		{"dddd4444", "start"},
+		{"dddd4444", "modify", "+tag"},
+		{"dddd4444"},
+	} {
+		_, exiterr, _ := program(arguments...)
+		require.NotNil(test, exiterr, "%v", arguments)
+		assert.Equal(test, 3, exiterr.ExitCode(), "%v", arguments)
+		assert.Contains(
+			test,
+			string(exiterr.Stderr),
+			`task dddd4444 "finished work" is resolved; this command only applies to open tasks`,
+			"%v",
+			arguments,
+		)
+	}
+
+	records, err := filepath.Glob(filepath.Join(repo, "*", "*.yml"))
+	require.NoError(test, err)
+	assert.Equal(
+		test,
+		[]string{filepath.Join(repo, "resolved", "dddd4444-0000-4000-8000-000000000004.yml")},
+		records,
+	)
+}
+
 // Issue #1: two clones each adding a task allocated the same numeric key, the
 // merge was clean, and every command failed afterwards.
 func TestDivergedClonesThatBothAddKeepWorking(test *testing.T) {
