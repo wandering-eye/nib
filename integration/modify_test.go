@@ -21,7 +21,12 @@ func TestModifyTasksByID(t *testing.T) {
 	output, exiterr, success = program("add", "three", "+three")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("modify", "2", "3", "+extra")
+	output, exiterr, success = program(
+		"modify",
+		referenceFor(t, repo, "two"),
+		referenceFor(t, repo, "three"),
+		"+extra",
+	)
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("next")

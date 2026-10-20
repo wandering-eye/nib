@@ -10,7 +10,7 @@ function nib () {
         }; then
             task_ids=("${(@f)$( \
                 command nib show-open --json $( (( has_double_dash )) && echo "--" ) \
-                | jq -r '.[] | [.id, .summary] | @tsv' \
+                | jq -r '.[] | [.uuid, .summary] | @tsv' \
                 | fzf --multi --delimiter='\t' --nth=2 --accept-nth=1 --preview=' nib {1} --' \
             )}")
             (( ${#task_ids[@]} > 0 )) || return

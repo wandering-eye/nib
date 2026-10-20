@@ -65,10 +65,21 @@ const (
 	// exit codes are part of the interface: a caller must be able to tell a
 	// failure from a misuse from a reference that matched nothing, without
 	// parsing messages.
-	EXIT_FAILURE  = 1
-	EXIT_USAGE    = 2
-	EXIT_NO_MATCH = 3
-	EXIT_NO_OP    = 4
+	EXIT_FAILURE   = 1
+	EXIT_USAGE     = 2
+	EXIT_NO_MATCH  = 3
+	EXIT_NO_OP     = 4
+	EXIT_AMBIGUOUS = 5
+
+	// a task is referred to by a leading part of its UUID, as git does with
+	// commits. Shorter than this matches too much to be worth trying.
+	REFERENCE_MIN_LENGTH = 4
+	// how much of the UUID is shown wherever a task is listed
+	SHORT_UUID_LENGTH = 8
+
+	// LEGACY_KEY_FILE is the counter earlier versions allocated numeric keys
+	// from. It is only ever deleted now.
+	LEGACY_KEY_FILE = "next-key"
 
 	//nolint
 	CMD_PRINT_ZSH_COMPLETION = "zsh-completion"
@@ -158,6 +169,12 @@ var NON_RESOLVED_STATUSES = []string{
 	STATUS_PAUSED,
 	STATUS_RECURRING,
 	STATUS_TEMPLATE,
+}
+
+// commands that create a task and never take a reference
+var CREATING_CMDS = []string{
+	CMD_ADD,
+	CMD_LOG,
 }
 
 var ALL_CMDS = []string{

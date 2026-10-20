@@ -53,12 +53,12 @@ func MustGitCommit(repoPath, format string, a ...any) {
 
 // GitCommit stages changes in the nib repository and commits them.
 // gitPaths are the only paths a commit is allowed to touch: the status
-// directories and the key high water mark. `git add .` used to stage the whole
+// directories, and the legacy key counter so its deletion can be committed. `git add .` used to stage the whole
 // worktree, so anything else a user happened to leave staged rode along in a
 // commit describing a task change. Paths that do not exist are left out,
 // because git rejects a pathspec that matches nothing.
 func gitPaths(repoPath string) []string {
-	candidates := append(append([]string{}, ALL_STATUSES...), "next-key")
+	candidates := append(append([]string{}, ALL_STATUSES...), LEGACY_KEY_FILE)
 
 	paths := make([]string, 0, len(candidates))
 
@@ -158,7 +158,7 @@ func stagedOutsideTaskPaths(repoPath string) ([]string, error) {
 	}
 
 	owned := map[string]bool{}
-	for _, path := range append(append([]string{}, ALL_STATUSES...), "next-key") {
+	for _, path := range append(append([]string{}, ALL_STATUSES...), LEGACY_KEY_FILE) {
 		owned[path] = true
 	}
 

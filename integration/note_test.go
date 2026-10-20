@@ -16,7 +16,7 @@ func TestNoteAppendTextWithoutTTY(t *testing.T) {
 	output, exiterr, success := program("add", "test task")
 	assertProgramResult(t, output, exiterr, success)
 
-	_, exiterr, success = program("note", "1", "first line")
+	_, exiterr, success = program("note", referenceFor(t, repo, "test task"), "first line")
 	assertProgramResult(t, nil, exiterr, success)
 
 	output, exiterr, success = program("show-open")
@@ -26,7 +26,7 @@ func TestNoteAppendTextWithoutTTY(t *testing.T) {
 	require.Len(t, tasks, 1)
 	assert.Equal(t, "first line", tasks[0].Notes)
 
-	_, exiterr, success = program("note", "1", "second line")
+	_, exiterr, success = program("note", referenceFor(t, repo, "test task"), "second line")
 	assertProgramResult(t, nil, exiterr, success)
 
 	output, exiterr, success = program("show-open")

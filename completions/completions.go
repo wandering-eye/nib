@@ -3,7 +3,6 @@ package completions
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
 	"github.com/wandering-eye/nib"
@@ -43,7 +42,7 @@ func Completions(conf nib.Config, args []string, ctx nib.Query) {
 		len(query.Tags) == 0 &&
 		len(query.AntiTags) == 0 &&
 		query.Priority == "" &&
-		query.Template == 0 &&
+		query.TemplateReference == "" &&
 		!query.IgnoreContext &&
 		(query.Cmd == nib.CMD_HELP || query.Cmd == "") {
 		for _, cmd := range nib.ALL_CMDS {
@@ -85,14 +84,18 @@ func Completions(conf nib.Config, args []string, ctx nib.Query) {
 		if !query.IgnoreContext &&
 			query.Cmd != nib.CMD_CONTEXT &&
 			query.Cmd != nib.CMD_MODIFY {
-			ts.Filter(ctx)
+			if err := ts.Filter(ctx); err != nil {
+				log.Printf("completions error: %v\n", err)
+
+				return
+			}
 		}
 
 		// templates
 		if query.Cmd == nib.CMD_ADD {
 			for _, task := range ts.Tasks() {
 				if task.Status == nib.STATUS_TEMPLATE {
-					completions = append(completions, "template:"+strconv.Itoa(task.ID))
+					completions = append(completions, "template:"+task.ShortUUID())
 				}
 			}
 		}

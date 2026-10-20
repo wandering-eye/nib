@@ -40,6 +40,11 @@ func NoMatchError(format string, a ...any) error {
 	return CommandError{Code: EXIT_NO_MATCH, Message: fmt.Sprintf(format, a...)}
 }
 
+// AmbiguousError describes a reference that matched more than one task.
+func AmbiguousError(format string, a ...any) error {
+	return CommandError{Code: EXIT_AMBIGUOUS, Message: fmt.Sprintf(format, a...)}
+}
+
 // NoOpError describes a request that was understood but changed nothing.
 func NoOpError(format string, a ...any) error {
 	return CommandError{Code: EXIT_NO_OP, Message: fmt.Sprintf(format, a...)}
@@ -169,9 +174,9 @@ func RunCmd(name string, args ...string) error {
 	return cmd.Run()
 }
 
-// MakeTempFilename encodes the task ID and a truncated portion of a task
+// MakeTempFilename encodes the task reference and a truncated portion of a task
 // summary into a string suitable for passing to ioutil.TempFile.
-func MakeTempFilename(id int, summary, ext string) string {
+func MakeTempFilename(reference, summary, ext string) string {
 	truncated := make([]rune, utf8.RuneCountInString(summary))
 	i := 0
 
@@ -210,9 +215,9 @@ func MakeTempFilename(id int, summary, ext string) string {
 
 	truncated = truncated[:i]
 
-	loweredWithID := strings.ToLower(fmt.Sprintf("%v-%s", id, string(truncated)))
+	loweredWithReference := strings.ToLower(fmt.Sprintf("%s-%s", reference, string(truncated)))
 
-	return fmt.Sprintf("nib.*.%s.%s", loweredWithID, ext)
+	return fmt.Sprintf("nib.*.%s.%s", loweredWithReference, ext)
 }
 
 func MustEditBytes(data []byte, tmpFilename string) []byte {
@@ -260,10 +265,6 @@ func StrSliceContains(haystack []string, needle string) bool {
 }
 
 // generics pls...
-func IntSliceContains(haystack []int, needle int) bool {
-	return slices.Contains(haystack, needle)
-}
-
 func StrSliceContainsAll(subset, superset []string) bool {
 	for _, have := range subset {
 		foundInSuperset := slices.Contains(superset, have)

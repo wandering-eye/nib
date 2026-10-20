@@ -17,8 +17,8 @@ func TestModifyChangesProperties(t *testing.T) {
 		{ // Add a note
 			Task{},
 			Query{
-				Template: 1,
-				Note:     "Test Note",
+				TemplateReference: "1a2b",
+				Note:              "Test Note",
 			},
 			Task{
 				Notes: "Test Note",

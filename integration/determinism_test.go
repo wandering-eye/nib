@@ -87,9 +87,9 @@ func TestNoColorSuppressesEscapes(test *testing.T) {
 	assert.NotContains(test, string(plain), "\x1b[", "NO_COLOR must remove every escape")
 }
 
-// An id names one task, so naming nothing is an error. A filter matching
+// A reference names one task, so naming nothing is an error. A filter matching
 // nothing is a legitimate empty answer and stays 0.
-func TestMissingIDExitsNoMatchAndFilterDoesNot(test *testing.T) {
+func TestMissingReferenceExitsNoMatchAndFilterDoesNot(test *testing.T) {
 	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
@@ -97,9 +97,9 @@ func TestMissingIDExitsNoMatchAndFilterDoesNot(test *testing.T) {
 	output, exiterr, success := program("add", "present")
 	assertProgramResult(test, output, exiterr, success)
 
-	_, exiterr, _ = program("9999")
-	assert.NotNil(test, exiterr, "a missing id must fail")
-	assert.Equal(test, 3, exiterr.ExitCode(), "a missing id is exit 3")
+	_, exiterr, _ = program("99999999")
+	assert.NotNil(test, exiterr, "a missing reference must fail")
+	assert.Equal(test, 3, exiterr.ExitCode(), "a missing reference is exit 3")
 
 	_, exiterr, success = program("project:nothingmatchesthis")
 	assert.Nil(test, exiterr, "a filter matching nothing is not an error")
@@ -133,7 +133,7 @@ func TestBulkModifyWithoutConfirmationChangesNothing(test *testing.T) {
 	assert.Equal(test, "P1", tasks[0].Priority, "confirming applies the change")
 }
 
-// `note <id>` with no text must never print the note. Falling through to a
+// `note <reference>` with no text must never print the note. Falling through to a
 // read is the defect this project is named for.
 func TestNoteWithoutTextDoesNotPrintTheNote(test *testing.T) {
 	repo, cleanup := makeRepo(test)
@@ -143,13 +143,17 @@ func TestNoteWithoutTextDoesNotPrintTheNote(test *testing.T) {
 	output, exiterr, success := program("add", "has a note")
 	assertProgramResult(test, output, exiterr, success)
 
-	output, exiterr, success = program("note", "1", "the note body")
+	output, exiterr, success = program(
+		"note",
+		referenceFor(test, repo, "has a note"),
+		"the note body",
+	)
 	assertProgramResult(test, output, exiterr, success)
 
 	unset := setEnv("EDITOR", "false")
 	defer unset()
 
-	printed, exiterr, _ := runBinary(repo, "note", "1")
+	printed, exiterr, _ := runBinary(repo, "note", referenceFor(test, repo, "has a note"))
 	assert.NotNil(test, exiterr, "no text means the editor, and a failing editor fails")
 	assert.False(test, strings.Contains(string(printed), "the note body"),
 		"note must not degrade into printing the note")

@@ -11,9 +11,13 @@ defined by the `Task` struct in [task.go](../task.go).
 This way only non-resolved tasks are actually loaded for most commands, so
 performance is stable even with a large task history.
 
-Each task records its ID in the yaml as `key`. Keys are allocated at creation
-from the committed `next-key` high water mark and are never reissued, not after
-a task is resolved and not in a fresh clone.
+A task's identity is its UUID; nothing else is allocated, so two clones that
+add tasks independently never collide. Commands accept any leading part of the
+UUID of at least 4 characters.
+
+Earlier versions also wrote a numeric `key` into each record and kept a
+`next-key` counter at the top of the store. The first load by a later version
+removes both and commits that as "Remove numeric task keys".
 
 Machine-local state (the current context) lives in `.git/nib/state.bin` and is
 not synchronised.

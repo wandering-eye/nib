@@ -5,26 +5,26 @@ package nib
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
 
-// when referring to tasks by ID, NON_RESOLVED_STATUSES must be loaded exclusively --
-// even if the filter is set to show issues that have only some statuses.
 type Query struct {
-	Cmd           string
-	IDs           []int
-	Tags          []string
-	AntiTags      []string
-	Project       string
-	AntiProjects  []string
-	Due           time.Time
-	DateFilter    string
-	Priority      string
-	Template      int
-	Text          string
-	IgnoreContext bool
+	Cmd string
+	// leading parts of task UUIDs, as typed. Resolved against the loaded
+	// tasks, so a command reaches only the statuses it loads.
+	References   []string
+	Tags         []string
+	AntiTags     []string
+	Project      string
+	AntiProjects []string
+	Due          time.Time
+	DateFilter   string
+	Priority     string
+	// a reference to the task a new one is copied from, set with template:
+	TemplateReference string
+	Text              string
+	IgnoreContext     bool
 	// render as JSON instead of the default table, set with --json
 	JSON bool
 	// any words after the note operator: /
@@ -35,9 +35,7 @@ type Query struct {
 func (query Query) String() string {
 	var args []string
 
-	for _, id := range query.IDs {
-		args = append(args, strconv.Itoa(id))
-	}
+	args = append(args, query.References...)
 
 	for _, tag := range query.Tags {
 		args = append(args, "+"+tag)
@@ -68,8 +66,8 @@ func (query Query) String() string {
 		args = append(args, query.Priority)
 	}
 
-	if query.Template > 0 {
-		args = append(args, fmt.Sprintf("template:%v", query.Template))
+	if query.TemplateReference != "" {
+		args = append(args, "template:"+query.TemplateReference)
 	}
 
 	if query.Text != "" {
@@ -100,14 +98,14 @@ func (query Query) HasOperators() bool {
 		query.Due != time.Time{} ||
 		query.DateFilter != "" ||
 		query.Priority != "" ||
-		query.Template > 0)
+		query.TemplateReference != "")
 }
 
 // ParseQuery parses the raw command line typed by the user.
 func ParseQuery(args ...string) Query {
 	var cmd string
 
-	var ids []int
+	var references []string
 
 	var tags []string
 
@@ -123,7 +121,7 @@ func ParseQuery(args ...string) Query {
 
 	var priority string
 
-	var template int
+	var templateReference string
 
 	var words []string
 
@@ -135,8 +133,8 @@ func ParseQuery(args ...string) Query {
 
 	var outputJSON bool
 
-	// something other than an ID has been parsed -- accept no more IDs
-	var IDsExhausted bool
+	// something other than a reference has been parsed -- accept no more
+	var referencesExhausted bool
 
 	var dueDateSet bool
 
@@ -152,7 +150,7 @@ func ParseQuery(args ...string) Query {
 
 		// display flags are consumed before anything else so they can never be
 		// mistaken for query text, and with continue so that they do not stop
-		// IDs being parsed
+		// references being parsed
 		if lcItem == JSON_KEYWORD {
 			outputJSON = true
 
@@ -171,8 +169,8 @@ func ParseQuery(args ...string) Query {
 			continue
 		}
 
-		if s, err := strconv.ParseInt(item, 10, 64); !IDsExhausted && err == nil {
-			ids = append(ids, int(s))
+		if !referencesExhausted && isReferenceShaped(item) {
+			references = append(references, item)
 
 			continue
 		}
@@ -196,9 +194,7 @@ func ParseQuery(args ...string) Query {
 			dateFilterType, dueDate = ParseDueDateArg(lcItem)
 			dueDateSet = true
 		} else if strings.HasPrefix(lcItem, "template:") {
-			if s, err := strconv.ParseInt(lcItem[9:], 10, 64); err == nil {
-				template = int(s)
-			}
+			templateReference = lcItem[9:]
 		} else if len(item) > 1 && lcItem[0:1] == "+" {
 			tags = append(tags, lcItem[1:])
 		} else if len(item) > 1 && lcItem[0:1] == "-" {
@@ -209,24 +205,31 @@ func ParseQuery(args ...string) Query {
 			words = append(words, item)
 		}
 
-		IDsExhausted = true
+		referencesExhausted = true
+	}
+
+	// Creating commands never take a reference, so a leading word that only
+	// looks like one ("add cafe order", "add 2024 taxes") is part of the summary.
+	if StrSliceContains(CREATING_CMDS, cmd) {
+		words = append(references, words...)
+		references = nil
 	}
 
 	return Query{
-		Cmd:           cmd,
-		IDs:           ids,
-		Tags:          tags,
-		AntiTags:      antiTags,
-		Project:       project,
-		AntiProjects:  antiProjects,
-		DateFilter:    dateFilterType,
-		Due:           dueDate,
-		Priority:      priority,
-		Template:      template,
-		Text:          strings.Join(words, " "),
-		Note:          strings.Join(notes, " "),
-		IgnoreContext: ignoreContext,
-		JSON:          outputJSON,
+		Cmd:               cmd,
+		References:        references,
+		Tags:              tags,
+		AntiTags:          antiTags,
+		Project:           project,
+		AntiProjects:      antiProjects,
+		DateFilter:        dateFilterType,
+		Due:               dueDate,
+		Priority:          priority,
+		TemplateReference: templateReference,
+		Text:              strings.Join(words, " "),
+		Note:              strings.Join(notes, " "),
+		IgnoreContext:     ignoreContext,
+		JSON:              outputJSON,
 	}
 }
 

@@ -114,6 +114,11 @@ for a substring search of description and notes.
 Cmd and IDs can be swapped, multiple IDs can be specified for batch
 operations.
 
+A task's ID is a leading part of its UUID. The first 8 characters are shown
+wherever tasks are listed; any prefix of at least 4 characters works, as does
+the full UUID, with or without hyphens. A prefix shared by more than one task
+is refused with the candidates listed rather than guessed.
+
 run "nib help <cmd>" for command specific help.
 
 Add -- to ignore the current context. / can be used when adding tasks to note
@@ -174,7 +179,7 @@ version             : Show nib version information
 | `/`             | `/`                      | When adding a task, everything after will be a note.             | `nib add check out ipfs / https://ipfs.io` |
 | `project:`      | `project:<project>`      | Set project. Filter/context, or when adding task.                | `nib context project:nib`               |
 | `-project:`     | `-project:<project>`     | Exclude project, filter/context only.                            | `nib next -project:nib -work`           |
-| `template:`     | `template:<id>`          | Base new task on a template.                                     | `nib add template:24`                      |
+| `template:`     | `template:<id>`          | Base new task on a template.                                     | `nib add template:1a2b3c4d`                |
 | `due:`          | `due:<date>`             | Set or filter by due date.                                       | `nib add task due:friday`                  |
 | `due.[filter]`  | `due.[filter]:<date>`    | Filter tasks based on due date filter (before, after, in/on).    | `nib next due.before:tomorrow`             |
 
@@ -246,8 +251,26 @@ a task is edited independently on 2 or more machines without synchronising. In
 practice this happens rarely; however when it does happen nib will fail to
 commit and warn you. You'll then need to go to the underlying `~/.nib` git
 repository and resolve manually before committing and running `nib sync`.
-Two clones that each add a task while out of sync can currently allocate the
-same ID; see [issue #1](https://github.com/wandering-eye/nib/issues/1).
+Two clones that each add a task while out of sync is not a conflict: tasks
+are identified by UUID, so both simply appear after the next sync.
+
+# Exit codes
+
+| Code | Meaning                                                     |
+| ---- | ----------------------------------------------------------- |
+| 0    | Success, including a filter that matched nothing            |
+| 1    | Failure                                                     |
+| 2    | Usage error, including an ID shorter than 4 characters      |
+| 3    | An ID matched no task                                       |
+| 4    | Nothing changed, or a confirmation was declined             |
+| 5    | An ID matched more than one task; candidates go to stderr   |
+
+# JSON output
+
+`--json` renders tasks as an array of objects. A task's identity is its
+`uuid` field, the full UUID; any prefix of it of at least 4 characters is a
+valid ID on the command line. Earlier versions also emitted a numeric
+`id` field, which no longer exists.
 
 # Performance
 
@@ -293,7 +316,7 @@ function nib () {
             [[ "${subcommand}" =~ ^(done|edit|note|open|remove|start|stop)$ ]]
         then
             command nib show-open --json $( (( has_double_dash )) && echo "--" ) \
-                | jq -r '.[] | [.id, .summary] | @tsv' \
+                | jq -r '.[] | [.uuid, .summary] | @tsv' \
                 | fzf --delimiter='\t' --nth=2 --accept-nth=1 --preview='nib {1} --' \
                 | xargs -n1 nib "${subcommand}"
             return
@@ -338,13 +361,13 @@ tools themselves.
 Yes.
 
 1. Set a context:
-2. Run a modify command without and ID
+2. Run a modify command without an ID
 3. Hit y to confirm to modify all tasks in context
 
 This means it's natural to review the tasks that would be modified before
 modifying by listing all tasks in the current context first, instead of
-potentially operating blindly by matching tags or numbers.
+potentially operating blindly by matching tags.
 
-You can also specify multiple task numbers at one time, as with any other command.
+You can also specify multiple task IDs at one time, as with any other command.
 
 [releases]: https://github.com/wandering-eye/nib/releases

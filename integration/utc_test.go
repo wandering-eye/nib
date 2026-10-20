@@ -28,7 +28,7 @@ func TestStoredTimestampsAreUTC(test *testing.T) {
 	output, exiterr, success = program("add", "to be resolved")
 	assertProgramResult(test, output, exiterr, success)
 
-	output, exiterr, success = program("done", "2")
+	output, exiterr, success = program("done", referenceFor(test, repo, "to be resolved"))
 	assertProgramResult(test, output, exiterr, success)
 
 	offset := regexp.MustCompile(`\d{2}:\d{2}:\d{2}(\.\d+)?[+-]\d{2}:\d{2}`)

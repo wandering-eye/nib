@@ -16,10 +16,10 @@ func TestShowPaused(t *testing.T) {
 	assertProgramResult(t, output, exiterr, success)
 
 	// "Paused" means tasks that were started, then stopped.
-	output, exiterr, success = program("start", "1")
+	output, exiterr, success = program("start", referenceFor(t, repo, "one"))
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("stop", "1")
+	output, exiterr, success = program("stop", referenceFor(t, repo, "one"))
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-paused")

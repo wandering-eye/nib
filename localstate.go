@@ -42,8 +42,8 @@ func LoadState(stateFilePath string) State {
 
 // SetContext sets a context on State, with some validation.
 func (state *State) SetContext(context Query) error {
-	if len(context.IDs) != 0 {
-		return errors.New("context cannot contain IDs")
+	if len(context.References) != 0 {
+		return errors.New("context cannot contain task references")
 	}
 
 	if context.Text != "" {

@@ -52,7 +52,7 @@ func TestAStatusChangeCommitsTheDeletion(test *testing.T) {
 	output, exiterr, success := program("add", "moves status")
 	assertProgramResult(test, output, exiterr, success)
 
-	output, exiterr, success = program("start", "1")
+	output, exiterr, success = program("start", referenceFor(test, repo, "moves status"))
 	assertProgramResult(test, output, exiterr, success)
 
 	tracked, err := exec.Command("git", "-C", repo, "ls-tree", "-r", "--name-only", "HEAD").Output()
@@ -73,9 +73,9 @@ func TestAStatusChangeCommitsTheDeletion(test *testing.T) {
 	assert.NotContains(test, string(status), ".yml", "no record change may be left uncommitted")
 }
 
-// Two creates racing produced two records claiming one key, after which every
-// command including a plain list refused to load the store.
-func TestConcurrentCreatesIssueUniqueKeys(test *testing.T) {
+// Racing creates must each land as their own record, and the store must still
+// load afterwards.
+func TestConcurrentCreatesAllLand(test *testing.T) {
 	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
@@ -101,10 +101,10 @@ func TestConcurrentCreatesIssueUniqueKeys(test *testing.T) {
 	tasks := unmarshalTaskArray(test, output)
 	assert.Len(test, tasks, creates, "every create must have landed")
 
-	seen := map[int]bool{}
+	seen := map[string]bool{}
 	for _, task := range tasks {
-		assert.False(test, seen[task.ID], "key %d was issued twice", task.ID)
-		seen[task.ID] = true
+		assert.False(test, seen[task.UUID], "%s was listed twice", task.UUID)
+		seen[task.UUID] = true
 	}
 }
 
@@ -118,13 +118,15 @@ func TestRepeatedNoOpDoesNotCommit(test *testing.T) {
 	output, exiterr, success := program("add", "already started")
 	assertProgramResult(test, output, exiterr, success)
 
-	output, exiterr, success = program("start", "1")
+	reference := referenceFor(test, repo, "already started")
+
+	output, exiterr, success = program("start", reference)
 	assertProgramResult(test, output, exiterr, success)
 
 	before, err := exec.Command("git", "-C", repo, "rev-list", "--count", "HEAD").Output()
 	assert.NoError(test, err)
 
-	_, exiterr, _ = program("start", "1")
+	_, exiterr, _ = program("start", reference)
 	assert.NotNil(test, exiterr, "starting an active task changes nothing")
 	assert.Equal(test, 4, exiterr.ExitCode(), "a no-op is exit 4")
 
@@ -144,7 +146,12 @@ func TestRemovingTheLastTaskCommitsTheDeletion(test *testing.T) {
 	output, exiterr, success := testCmd(repo)("add", "only task")
 	assertProgramResult(test, output, exiterr, success)
 
-	output, exiterr, success = testConfirmingCmd(repo)("remove", "1")
+	output, exiterr, success = testConfirmingCmd(
+		repo,
+	)(
+		"remove",
+		referenceFor(test, repo, "only task"),
+	)
 	assertProgramResult(test, output, exiterr, success)
 
 	tracked, err := exec.Command("git", "-C", repo, "ls-tree", "-r", "--name-only", "HEAD").Output()

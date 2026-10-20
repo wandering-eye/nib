@@ -28,7 +28,7 @@ func TestShowProjects(t *testing.T) {
 	assert.Equal(t, 0, projects[0].TasksResolved, "no tasks resolved")
 	assert.Equal(t, 3, projects[0].Tasks, "three tasks created")
 
-	output, exiterr, success = program("2", "done")
+	output, exiterr, success = program(referenceFor(t, repo, "two"), "done")
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-projects")
