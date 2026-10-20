@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 import (
 	"strings"

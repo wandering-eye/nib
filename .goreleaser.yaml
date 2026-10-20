@@ -21,21 +21,8 @@ builds:
       - -X github.com/wandering-eye/nib.GIT_COMMIT={{ .FullCommit }}
       - -X github.com/wandering-eye/nib.BUILD_DATE={{ .Date }}
 
-  - id: dstask-import
-    binary: dstask-import
-    main: ./cmd/dstask-import
-    env:
-      - CGO_ENABLED=0
-    goos: [darwin, linux]
-    goarch: [amd64, arm64]
-    ldflags:
-      - -s -w
-      - -X github.com/wandering-eye/nib.VERSION={{ .Version }}
-      - -X github.com/wandering-eye/nib.GIT_COMMIT={{ .FullCommit }}
-      - -X github.com/wandering-eye/nib.BUILD_DATE={{ .Date }}
-
 archives:
-  - ids: [nib, dstask-import]
+  - ids: [nib]
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
@@ -51,7 +38,7 @@ changelog:
 
 homebrew_casks:
   - name: nib
-    binaries: [nib, dstask-import]
+    binaries: [nib]
     homepage: https://github.com/wandering-eye/nib
     description: Terminal TODO manager with git-based sync and markdown notes per task
     repository:
@@ -65,5 +52,4 @@ homebrew_casks:
         install: |
           if OS.mac?
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/nib"]
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/dstask-import"]
           end

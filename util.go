@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 import (
 	"bufio"
@@ -212,7 +212,7 @@ func MakeTempFilename(id int, summary, ext string) string {
 
 	loweredWithID := strings.ToLower(fmt.Sprintf("%v-%s", id, string(truncated)))
 
-	return fmt.Sprintf("dstask.*.%s.%s", loweredWithID, ext)
+	return fmt.Sprintf("nib.*.%s.%s", loweredWithID, ext)
 }
 
 func MustEditBytes(data []byte, tmpFilename string) []byte {

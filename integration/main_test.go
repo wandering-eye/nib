@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 	"gotest.tools/assert"
 )
 
@@ -103,11 +103,11 @@ func runBinaryWithInput(repoPath, input string, args ...string) ([]byte, *exec.E
 	return output, exitErr, exitErr.Success()
 }
 
-// repoEnvironment points both repository variables at the test repository, so
-// neither one exported in the developer's shell can reach their real store.
-// NIB_GIT_REPO wins over DSTASK_GIT_REPO, and the last duplicate entry wins.
+// repoEnvironment points NIB_GIT_REPO at the test repository, so a value
+// exported in the developer's shell cannot reach their real store. The last
+// duplicate entry in an environment wins.
 func repoEnvironment(repoPath string) []string {
-	return append(os.Environ(), "NIB_GIT_REPO="+repoPath, "DSTASK_GIT_REPO="+repoPath)
+	return append(os.Environ(), "NIB_GIT_REPO="+repoPath)
 }
 
 // Sets an environment variable, and returns a callable closure to unset it.
@@ -133,30 +133,30 @@ func logFailure(t *testing.T, output []byte, exiterr *exec.ExitError) {
 	}
 }
 
-func unmarshalTaskArray(t *testing.T, data []byte) []dstask.Task {
+func unmarshalTaskArray(t *testing.T, data []byte) []nib.Task {
 	t.Helper()
 
-	var tasks []dstask.Task
+	var tasks []nib.Task
 	err := json.Unmarshal(data, &tasks)
 	assert.NilError(t, err)
 
 	return tasks
 }
 
-func unmarshalProjectArray(t *testing.T, data []byte) []dstask.Project {
+func unmarshalProjectArray(t *testing.T, data []byte) []nib.Project {
 	t.Helper()
 
-	var projects []dstask.Project
+	var projects []nib.Project
 	err := json.Unmarshal(data, &projects)
 	assert.NilError(t, err)
 
 	return projects
 }
 
-func makeDstaskRepo(t *testing.T) (string, func()) {
+func makeRepo(t *testing.T) (string, func()) {
 	t.Helper()
 
-	dir, err := os.MkdirTemp("", "dstask")
+	dir, err := os.MkdirTemp("", "nib")
 	if err != nil {
 		t.Fatal()
 	}

@@ -2,43 +2,20 @@
 <img align="center" src="etc/icon.png" alt="icon" height="64" />
 </p>
 
-<h1 align="center">dstask</h1>
+<h1 align="center">nib</h1>
 
 <p align="center">
 <i>Single binary terminal-based TODO manager with git-based sync + markdown notes per task</i>
 </p>
 
-<p align="center">
-<a href="https://cloud.drone.io/naggie/dstask"><img src="https://cloud.drone.io/api/badges/naggie/dstask/status.svg" /></a>
-<a href="https://goreportcard.com/report/github.com/naggie/dstask"><img src="https://goreportcard.com/badge/github.com/naggie/dstask" /></a>
-<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
-<a href="http://godoc.org/github.com/naggie/dstask"><img src="https://img.shields.io/badge/godoc-reference-blue.svg"/></a>
-<a href="https://gophers.slack.com/archives/C01ED7UKLBH"><img src="https://img.shields.io/badge/Gophers/dstask-yellow.svg?logo=slack"/></a>
-</p>
-
-<br>
-<br>
-<br>
-
-Dstask is a personal task tracker designed to help you focus. It is similar to
+nib is a personal task tracker designed to help you focus. It is similar to
 [Taskwarrior](https://taskwarrior.org/) but uses git to synchronise instead of
 a special protocol.
 
 If you're at home in the terminal, and with solving the occasional merge
-conflict, then dstask is for you!
-
-https://github.com/user-attachments/assets/589d06fd-7486-46e4-b838-ce85af12f0fc
-
-[Video courtesy of xGoivo -- thanks!](https://www.reddit.com/r/taskwarrior/comments/1o7itzg/what_do_you_guys_think_about_this_taskwarrior/)
-
-
-
+conflict, then nib is for you!
 
 Features:
-
-<a href="https://repology.org/project/dstask/versions">
-    <img src="https://repology.org/badge/vertical-allrepos/dstask.svg" alt="Packaging status" align="right">
-</a>
 
 - Powerful context system (automatically applies filter/tags to queries and new tasks)
 - **Git powered sync**/undo/resolve ([passwordstore.org](https://www.passwordstore.org/) style) which means no need to set up a sync server, and syncing between devices is easy!
@@ -47,13 +24,12 @@ Features:
 - `open` command -- **open URLs found in specified task** (including notes) in the browser
 - zsh/bash completion (including tags and projects in current context) for speed; PowerShell completion on Windows
 - A single statically-linked binary
-- [import tool](doc/dstask-import.md) which can import GitHub issues or taskwarrior tasks.
 
 Non-features:
 
 - Collaboration. This is a personal task tracker. Use another system for
   projects that involve multiple people. Note that it can still be beneficial
-  to use dstask to track what you are working on in the context of a
+  to use nib to track what you are working on in the context of a
   multi-person project tracked elsewhere.
 
 Requirements:
@@ -61,51 +37,9 @@ Requirements:
 - Git
 - A 256-color capable terminal
 
-# Screenshots
-
-<table>
-    <tbody>
-        <tr>
-            <td>
-                <p align="center">
-                    <img src="https://github.com/naggie/dstask/raw/master/etc/dstask.png">
-                    <em>Next command (default when no command is specified)</em>
-                </p>
-            </td>
-            <td>
-                <p align="center">
-                    <img src="https://github.com/naggie/dstask/raw/master/etc/show-resolved.png">
-                    <em>Show-resolved command to review completed tasks by week. Useful for meetings.</em>
-                </p>
-            </td>
-            <td>
-                <p align="center">
-                    <img src="https://github.com/naggie/dstask/raw/master/etc/edit.png">
-                    <em>Editing a task with $EDITOR (which happens to be vim)</em>
-                </p>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <p align="center">
-                    <img src="https://github.com/naggie/dstask/raw/master/etc/add.png">
-                    <em>Adding a task</em>
-                </p>
-            </td>
-            <td>
-                <p align="center">
-                    <img src="https://github.com/naggie/dstask/raw/master/etc/sync.png">
-                    <em>Sync command (which uses git)</em>
-                </p>
-            </td>
-            <td>&nbsp;</td>
-        </tr>
-    </tbody>
-</table>
-
 # Installation
 
-On macOS, install with Homebrew. This installs both `nib` and `dstask-import`:
+On macOS, install with Homebrew:
 
 ```sh
 brew install wandering-eye/tap/nib
@@ -114,28 +48,28 @@ brew install wandering-eye/tap/nib
 Otherwise:
 
 1. Copy the executable (from the [releases page][releases]) to somewhere in your PATH.
-   - Linux/macOS: name it `dstask` and mark it executable (e.g. `/usr/local/bin/`).
-   - Windows: use `dstask.exe` and place it in a directory on `PATH` (e.g. `%USERPROFILE%\bin`).
+   - Linux/macOS: name it `nib` and mark it executable (e.g. `/usr/local/bin/`).
+   - Windows: use `nib.exe` and place it in a directory on `PATH` (e.g. `%USERPROFILE%\bin`).
 1. Enable shell completions:
-   - Bash: add `source <(dstask bash-completion)` to your `.bashrc`.
-   - Zsh: add `dstask zsh-completion > /usr/local/share/zsh/site-functions/_dstask` or source `completions/zsh.sh` in your `~/.zshrc`.
-   - Nushell: run `dstask nushell-completion | save -f ~/.config/nushell/completions/dstask.nu` then add `source ~/.config/nushell/completions/dstask.nu` to your `config.nu`.
+   - Bash: add `source <(nib bash-completion)` to your `.bashrc`.
+   - Zsh: add `nib zsh-completion > /usr/local/share/zsh/site-functions/_nib` or source `completions/zsh.sh` in your `~/.zshrc`.
+   - Nushell: run `nib nushell-completion | save -f ~/.config/nushell/completions/nib.nu` then add `source ~/.config/nushell/completions/nib.nu` to your `config.nu`.
    - PowerShell (Windows): see section "PowerShell completion" below.
-1. Set up an alias in your `.bashrc`: `alias task=dstask` or `alias t=dstask` to make task management slightly faster.
-1. Create or clone a `~/.dstask` git repository for the data, if you haven't already:
-   - Linux/macOS: `mkdir ~/.dstask && git -C ~/.dstask init`
-   - Windows: `mkdir %USERPROFILE%\.dstask` then `git -C %USERPROFILE%\.dstask init`
+1. Set up an alias in your `.bashrc`: `alias task=nib` or `alias t=nib` to make task management slightly faster.
+1. Create or clone a `~/.nib` git repository for the data, if you haven't already:
+   - Linux/macOS: `mkdir ~/.nib && git -C ~/.nib init`
+   - Windows: `mkdir %USERPROFILE%\.nib` then `git -C %USERPROFILE%\.nib init`
 
 ## Windows notes
 
-- Default data location: `%USERPROFILE%\.dstask` (can be overridden via `DSTASK_GIT_REPO`).
-- On first run, dstask may prompt to create the repository if it doesn't exist; answer `y`/`yes` to proceed.
+- Default data location: `%USERPROFILE%\.nib` (can be overridden via `NIB_GIT_REPO`).
+- On first run, nib may prompt to create the repository if it doesn't exist; answer `y`/`yes` to proceed.
 - Terminal: use Windows Terminal or PowerShell with a 256-color capable profile for best results.
 - Shell completions: PowerShell completion is supported; see next section.
 
 ### PowerShell completion
 
-To enable PowerShell tab completion for `dstask` on Windows, use the embedded script in `completions/powershell.ps1`.
+To enable PowerShell tab completion for `nib` on Windows, use the embedded script in `completions/powershell.ps1`.
 
 One-off for the current session:
 
@@ -159,35 +93,28 @@ notepad $PROFILE
 Alternatively, hardcode the absolute path to the repository if `PSScriptRoot` is not suitable for your setup, e.g.:
 
 ```powershell
-. "C:\\Users\\<you>\\source\\repos\\dstask-win-port\\completions\\powershell.ps1"
+. "C:\\Users\\<you>\\source\\repos\\nib\\completions\\powershell.ps1"
 ```
-
-There are also unofficial packages for:
-
-- [Nix](https://nixos.org/nixos/packages.html?attr=dstask&channel=nixpkgs-unstable&query=dstask)
-- [Arch (AUR)](https://aur.archlinux.org/packages/dstask/)
-- [FreeBSD](https://www.freshports.org/deskutils/dstask/)
-- [Homebrew](https://formulae.brew.sh/formula/dstask)
 
 # Moving from Taskwarrior
 
-We have a [migration guide](doc/taskwarrior-migration.md) to make the transition from taskwarrior to dstask a simple process.
+We have a [migration guide](doc/taskwarrior-migration.md) to make the transition from taskwarrior to nib a simple process.
 
 # Usage
 
 ```
-Usage: dstask [id...] <cmd> [task summary/filter]
+Usage: nib [id...] <cmd> [task summary/filter]
 
 Where [task summary] is text with tags/project/priority specified. Tags are
 specified with + (or - for filtering) eg: +work. The project is specified with
-a project:g prefix eg: project:dstask -- no quotes. Priorities run from P3
+a project:g prefix eg: project:nib -- no quotes. Priorities run from P3
 (low), P2 (default) to P1 (high) and P0 (critical). Text can also be specified
 for a substring search of description and notes.
 
 Cmd and IDs can be swapped, multiple IDs can be specified for batch
 operations.
 
-run "dstask help <cmd>" for command specific help.
+run "nib help <cmd>" for command specific help.
 
 Add -- to ignore the current context. / can be used when adding tasks to note
 any words after.
@@ -203,9 +130,9 @@ note                : Append to or edit note for a task
 stop                : Change task status to pending
 done                : Resolve a task
 context             : Set global context for task list and new tasks (use "none" to set no context)
-modify              : Set attributes for a task
+modify              : Change task attributes specified on command line
 edit                : Edit task with text editor
-undo                : Undo last action with git revert
+undo                : Undo last n commits
 sync                : Pull then push to git repository, automatic merge commit.
 open                : Open all URLs found in summary/annotations
 git                 : Pass a command to git in the repository. Used for push/pull.
@@ -219,10 +146,11 @@ show-resolved       : Show resolved tasks
 show-templates      : Show task templates
 show-unorganised    : Show untagged tasks with no projects (global context)
 bash-completion     : Print bash completion script to stdout
+fish-completion     : Print fish completion script to stdout
 zsh-completion      : Print zsh completion script to stdout
 nushell-completion  : Print nushell completion script to stdout
 help                : Get help on any command or show this message
-version             : Show dstask version information
+version             : Show nib version information
 ```
 
 # Syntax
@@ -240,15 +168,15 @@ version             : Show dstask version information
 
 | Symbol          | Syntax                   | Description                                                      | Example                                       |
 | --------------- | ------------------------ | ---------------------------------------------------------------- | --------------------------------------------- |
-| `+`             | `+<tag>`                 | Include tag. Filter/context, or when adding task.                | `dstask add fix server +work`                 |
-| `-`             | `-<tag>`                 | Exclude tag. Filter/context only.                                | `dstask next -feature`                        |
-| `--`            | `--`                     | Ignore context. When listing or adding tasks.                    | `dstask --`, `task add -- +home do guttering` |
-| `/`             | `/`                      | When adding a task, everything after will be a note.             | `dstask add check out ipfs / https://ipfs.io` |
-| `project:`      | `project:<project>`      | Set project. Filter/context, or when adding task.                | `dstask context project:dstask`               |
-| `-project:`     | `-project:<project>`     | Exclude project, filter/context only.                            | `dstask next -project:dstask -work`           |
-| `template:`     | `template:<id>`          | Base new task on a template.                                     | `dstask add template:24`                      |
-| `due:`          | `due:<date>`             | Set or filter by due date.                                       | `dstask add task due:friday`                  |
-| `due.[filter]`  | `due.[filter]:<date>`    | Filter tasks based on due date filter (before, after, in/on).    | `dstask next due.before:tomorrow`             |
+| `+`             | `+<tag>`                 | Include tag. Filter/context, or when adding task.                | `nib add fix server +work`                 |
+| `-`             | `-<tag>`                 | Exclude tag. Filter/context only.                                | `nib next -feature`                        |
+| `--`            | `--`                     | Ignore context. When listing or adding tasks.                    | `nib --`, `task add -- +home do guttering` |
+| `/`             | `/`                      | When adding a task, everything after will be a note.             | `nib add check out ipfs / https://ipfs.io` |
+| `project:`      | `project:<project>`      | Set project. Filter/context, or when adding task.                | `nib context project:nib`               |
+| `-project:`     | `-project:<project>`     | Exclude project, filter/context only.                            | `nib next -project:nib -work`           |
+| `template:`     | `template:<id>`          | Base new task on a template.                                     | `nib add template:24`                      |
+| `due:`          | `due:<date>`             | Set or filter by due date.                                       | `nib add task due:friday`                  |
+| `due.[filter]`  | `due.[filter]:<date>`    | Filter tasks based on due date filter (before, after, in/on).    | `nib next due.before:tomorrow`             |
 
 
 ## State
@@ -277,35 +205,35 @@ Due dates can be specified when adding tasks or filtering existing tasks.
 ### Adding Tasks with Due Dates
 
 ```bash
-dstask add task with due date due:next-monday
-dstask add finish report due:friday
-dstask add pay bills due:15  # 15th of current month
-dstask add halloween party due:2025-10-31
+nib add task with due date due:next-monday
+nib add finish report due:friday
+nib add pay bills due:15  # 15th of current month
+nib add halloween party due:2025-10-31
 ```
 
 ### Filtering Tasks by Due Date
 
 ```bash
-dstask next due.before:friday        # Tasks due before Friday
-dstask next due.after:tomorrow       # Tasks due after tomorrow  
-dstask next due.on:tue               # Tasks due on Tuesday
-dstask next due:overdue              # Overdue tasks
-dstask next due.before:2025-12-31    # Tasks due before end of year
+nib next due.before:friday        # Tasks due before Friday
+nib next due.after:tomorrow       # Tasks due after tomorrow  
+nib next due.on:tue               # Tasks due on Tuesday
+nib next due:overdue              # Overdue tasks
+nib next due.before:2025-12-31    # Tasks due before end of year
 ```
 
 # Contexts
 
-When dstask runs, a context can be set to filter the task output. Run `dstask help context`
+When nib runs, a context can be set to filter the task output. Run `nib help context`
 for more examples. There are two ways to set a context.
 
 1. The `context` command, which sets a global context on disk.
-1. The `DSTASK_CONTEXT` environment variable. Contexts set by this environment
+1. The `NIB_CONTEXT` environment variable. Contexts set by this environment
    variable override the global context on disk.
 
 Use the `context` to set a context that will apply by default, no matter what
 terminal window you're using.
 
-Use the `DSTASK_CONTEXT` environment variable to override context in specific
+Use the `NIB_CONTEXT` environment variable to override context in specific
 uses. For instance, a [direnv](https://direnv.net/) config can set a context for
 particular directories.
 
@@ -313,13 +241,13 @@ Context is not synchronised between machines.
 
 # Dealing with merge conflicts
 
-Dstask is written in such a way that merge conflicts should not happen, unless
+nib is written in such a way that merge conflicts should not happen, unless
 a task is edited independently on 2 or more machines without synchronising. In
-practice this happens rarely; however when it does happen dstask will fail to
-commit and warn you. You'll then need to go to the underlying `~/.dstask` git
-repository and resolve manually before committing and running `dstask sync`. In
-some rare cases the ID can conflict. This is something dstask will soon be
-equipped to handle automatically when the `sync` command runs.
+practice this happens rarely; however when it does happen nib will fail to
+commit and warn you. You'll then need to go to the underlying `~/.nib` git
+repository and resolve manually before committing and running `nib sync`.
+Two clones that each add a task while out of sync can currently allocate the
+same ID; see [issue #1](https://github.com/wandering-eye/nib/issues/1).
 
 # Performance
 
@@ -328,14 +256,14 @@ See [etc/PERFORMANCE.md](etc/PERFORMANCE.md)
 # General tips
 
 - Overwhelmed by tasks? Try focussing by prioritising (set priorities) or narrowing the context. The `show-tags` and `show-projects` commands are useful for creating a context.
-- Use dstask to track things you might forget, rather than everything. SNR is important. Don't track tasks for the sake of it, and don't track _ideas_. Track ideas separately.
+- Use nib to track things you might forget, rather than everything. SNR is important. Don't track tasks for the sake of it, and don't track _ideas_. Track ideas separately.
 - Spend regular time reviewing tasks. You'll probably find some you've already resolved, and many you've forgotten. The `show-unorganised` command is good for this.
-- Try to work through tasks from the top of the list. Dstask sorts by priority then creation date -- the most important tasks are at the top.
+- Try to work through tasks from the top of the list. nib sorts by priority then creation date -- the most important tasks are at the top.
 - Use `start`/`stop` to mark what you're genuinely working on right now; it makes resuming work faster. Paused tasks will be slightly highlighted, so you won't lose track of them. `show-paused` helps if they start to pile up.
 - Keep a [github-style check list](https://help.github.com/en/articles/about-task-lists) in the markdown note of complex or procedural tasks
 - Failing to get started working? Start with the smallest task
 - Record only required tasks. Track ideas separately, else your task list will grow unboundedly! I keep an `ideas.md` for various projects for this reason.
-- set `DSTASK_CONTEXT` in a `.envrc` per-project repository. With direnv, this allows you to automatically switch context
+- set `NIB_CONTEXT` in a `.envrc` per-project repository. With direnv, this allows you to automatically switch context
 
 # Database
 
@@ -343,19 +271,19 @@ See [etc/DATABASE_FORMAT.md](etc/DATABASE_FORMAT.md)
 
 The default database location is:
 
-- Linux/macOS: `~/.dstask/`
-- Windows: `%USERPROFILE%\\.dstask`
+- Linux/macOS: `~/.nib/`
+- Windows: `%USERPROFILE%\\.nib`
 
-It can be configured by the environment variable `DSTASK_GIT_REPO`.
+It can be configured by the environment variable `NIB_GIT_REPO`.
 
 # Integration of fuzzy finders
 
 Instead of passing task IDs to commands, a fuzzy finder like [*fzf*](https://github.com/junegunn/fzf) can be used to
-search tasks by their summary instead. This is not part of dstask itself, but can be achieved by defining a shell
+search tasks by their summary instead. This is not part of nib itself, but can be achieved by defining a shell
 wrapper like this in your `.bashrc` or `.zshrc`:
 
 ```bash
-function dstask () {
+function nib () {
     local has_double_dash subcommand
 
     if (( $# == 1 || $# == 2 )); then
@@ -364,23 +292,23 @@ function dstask () {
         if (( $# == 1 || has_double_dash )) && \
             [[ "${subcommand}" =~ ^(done|edit|note|open|remove|start|stop)$ ]]
         then
-            command dstask show-open $( (( has_double_dash )) && echo "--" ) \
+            command nib show-open --json $( (( has_double_dash )) && echo "--" ) \
                 | jq -r '.[] | [.id, .summary] | @tsv' \
-                | fzf --delimiter='\t' --nth=2 --accept-nth=1 --preview='DSTASK_FAKE_PTY=1 dstask {1} --' \
-                | xargs -n1 dstask "${subcommand}"
+                | fzf --delimiter='\t' --nth=2 --accept-nth=1 --preview='nib {1} --' \
+                | xargs -n1 nib "${subcommand}"
             return
         fi
     fi
 
-    command dstask "$@"
+    command nib "$@"
 }
 ```
 
-The wrapper function checks if dstask was called with a subcommand missing the task ID, and if so uses the `show-open`
+The wrapper function checks if nib was called with a subcommand missing the task ID, and if so uses the `show-open`
 command to get a list of tasks to choose from. `--` can be used to ignore the current context for the fuzzy search. All
-other commands are passed directly to dstask.
+other commands are passed directly to nib.
 
-A more advanced version, which adds additional support for the dstask `modify` command by inserting the selected task ID
+A more advanced version, which adds additional support for the nib `modify` command by inserting the selected task ID
 directly into the shell prompt, can be found in [etc/fzf_integration.zsh](etc/fzf_integration.zsh) (zsh only).
 
 # Alternatives
@@ -396,12 +324,12 @@ Alternatives listed must be capable of running in the terminal.
 
 # FAQ
 
-> Does dstask encrypt tasks?
+> Does nib encrypt tasks?
 
-Encryption is not a design goal of dstask. If you want to have your remote
+Encryption is not a design goal of nib. If you want to have your remote
 repository encrypted, you may consider
 [git-remote-gcrypt](https://spwhitton.name/tech/code/git-remote-gcrypt/) or
-[git-crypt](https://github.com/AGWA/git-crypt). Note that dstask has not been
+[git-crypt](https://github.com/AGWA/git-crypt). Note that nib has not been
 tested with these tools, nor can any claims be made about the security of the
 tools themselves.
 
@@ -418,16 +346,5 @@ modifying by listing all tasks in the current context first, instead of
 potentially operating blindly by matching tags or numbers.
 
 You can also specify multiple task numbers at one time, as with any other command.
-
-> Is there a GUI or web interface?
-
-Not as part of dstask itself. However, dstask can be used as a library -- @botto
-has started developing a web GUI, specifically to allow task management on-the-go
-via a smartphone: <https://github.com/botto/dstask-gui> . It's in early stages but
-is meaningful as having no smartphone-based control is a blocker for a lot of people.
-
-> Has dstask been featured in a magazine?
-
-Yes! <https://www.linux-magazine.com/Issues/2021/246/dstask> :-)
 
 [releases]: https://github.com/wandering-eye/nib/releases

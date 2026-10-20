@@ -7,7 +7,7 @@ import (
 )
 
 func TestModifyTasksByID(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -39,7 +39,7 @@ func TestModifyTasksByID(t *testing.T) {
 }
 
 func TestModifyTasksInContext(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)

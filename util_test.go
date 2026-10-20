@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 import (
 	"os"
@@ -18,27 +18,27 @@ func TestMakeTempFilename(t *testing.T) {
 		{
 			1,
 			`& &`,
-			`dstask.*.1-.md`,
+			`nib.*.1-.md`,
 		},
 		{
 			2147483647, // max int32
 			`J's $100, != €100`,
-			`dstask.*.2147483647-js-100-100.md`,
+			`nib.*.2147483647-js-100-100.md`,
 		},
 		{
 			-2147483648, // min int32
 			`J's $100, != €100`,
-			`dstask.*.-2147483648-js-100-100.md`,
+			`nib.*.-2147483648-js-100-100.md`,
 		},
 		{
 			99,
 			`A simple summary!`,
-			`dstask.*.99-a-simple-summary.md`,
+			`nib.*.99-a-simple-summary.md`,
 		},
 		{
 			1,
 			`& that's that.`,
-			`dstask.*.1-thats-that.md`,
+			`nib.*.1-thats-that.md`,
 		},
 	}
 

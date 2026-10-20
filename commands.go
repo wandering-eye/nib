@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 import (
 	"errors"
@@ -59,7 +59,7 @@ func CommandAdd(conf Config, ctx, query Query) error {
 		if tt.Status != STATUS_TEMPLATE {
 			// Insert Text Statement to inform user of real Templates
 			fmt.Print(
-				"\nYou've copied an open task!\nTo learn more about creating templates enter 'dstask help template'\n\n",
+				"\nYou've copied an open task!\nTo learn more about creating templates enter 'nib help template'\n\n",
 			)
 		}
 	} else if query.Text != "" {
@@ -83,7 +83,7 @@ func CommandAdd(conf Config, ctx, query Query) error {
 	return nil
 }
 
-// CommandContext sets a global context for dstask.
+// CommandContext sets a global context for nib.
 func CommandContext(conf Config, state State, ctx, query Query) error {
 	if len(os.Args) < 3 {
 		fmt.Println(ctx)
@@ -235,7 +235,7 @@ func CommandModify(conf Config, ctx, query Query) error {
 	if len(query.IDs) == 0 {
 		ts.Filter(ctx)
 
-		// Confirmation is not gated on a terminal check: piped, dstask skipped
+		// Confirmation is not gated on a terminal check: piped, earlier versions skipped
 		// the prompt and silently modified every task in the context.
 		ConfirmOrAbort(
 			"no IDs specified. Apply to all %d tasks in current ctx?",
@@ -701,7 +701,7 @@ func CommandUndo(conf Config, args []string, ctx, query Query) error {
 	return nil
 }
 
-// CommandVersion prints version information for the dstask binary.
+// CommandVersion prints version information for the nib binary.
 func CommandVersion() {
 	fmt.Printf(
 		"Version: %s\nGit commit: %s\nBuild date: %s\n",

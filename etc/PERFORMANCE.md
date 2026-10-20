@@ -1,16 +1,11 @@
 # Performance
 
-Currently I'm using dstask to manage thousands of tasks and the interface still
-appears instant.
+nib loads and parses every non-resolved task, each task being a single file.
+This may sound wasteful, but it allows git to track history natively and is
+performant thanks to modern OS disk caches and SSDs.
 
-Dstask currently loads and parses every non-resolved task, each task being a
-single file. This may sound wasteful, but it allows git to track history
-natively and is actually performant thanks to modern OS disk caches and SSDs.
-
-If it starts to slow down as my number of non-resolved tasks increases, I'll
-look into indexing and other optimisations such as archiving really old tasks.
-I don't believe that this will be necessary, as the number of open tasks is
-(hopefully) bounded.
-
+If it slows down as the number of non-resolved tasks grows, indexing or
+archiving very old tasks are the options to look at. The number of open tasks
+is (hopefully) bounded, so this should not be necessary.
 
 TODO add `hyperfine` benchmarks.

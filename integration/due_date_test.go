@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	dstask "github.com/wandering-eye/nib"
+	"github.com/wandering-eye/nib"
 )
 
 func getTestDate(year int, month time.Month, day int) time.Time {
@@ -52,7 +52,7 @@ func assertDateEqual(t *testing.T, expected, actual time.Time) {
 }
 
 func TestAddTaskWithFullDate(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -69,7 +69,7 @@ func TestAddTaskWithFullDate(t *testing.T) {
 }
 
 func TestAddTaskWithMonthDay(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -87,7 +87,7 @@ func TestAddTaskWithMonthDay(t *testing.T) {
 }
 
 func TestAddTaskWithDay(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -106,7 +106,7 @@ func TestAddTaskWithDay(t *testing.T) {
 }
 
 func TestAddTaskWithToday(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -123,7 +123,7 @@ func TestAddTaskWithToday(t *testing.T) {
 }
 
 func TestAddTaskWithYesterday(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -140,7 +140,7 @@ func TestAddTaskWithYesterday(t *testing.T) {
 }
 
 func TestAddTaskWithTomorrow(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -157,7 +157,7 @@ func TestAddTaskWithTomorrow(t *testing.T) {
 }
 
 func TestAddTaskWithWeekdays(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -196,7 +196,7 @@ func TestAddTaskWithWeekdays(t *testing.T) {
 }
 
 func TestFilterTasksByExactDate(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -220,7 +220,7 @@ func TestFilterTasksByExactDate(t *testing.T) {
 }
 
 func TestFilterTasksByToday(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -241,7 +241,7 @@ func TestFilterTasksByToday(t *testing.T) {
 }
 
 func TestFilterTasksByOverdue(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -265,7 +265,7 @@ func TestFilterTasksByOverdue(t *testing.T) {
 }
 
 func TestFilterTasksByThisWeekdays(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -285,7 +285,7 @@ func TestFilterTasksByThisWeekdays(t *testing.T) {
 }
 
 func TestFilterTasksByNextWeekdays(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -305,7 +305,7 @@ func TestFilterTasksByNextWeekdays(t *testing.T) {
 }
 
 func TestFilterTasksDueAfter(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -331,7 +331,7 @@ func TestFilterTasksDueAfter(t *testing.T) {
 }
 
 func TestFilterTasksDueBefore(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -357,7 +357,7 @@ func TestFilterTasksDueBefore(t *testing.T) {
 }
 
 func TestFilterTasksDueOn(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -381,7 +381,7 @@ func TestFilterTasksDueOn(t *testing.T) {
 }
 
 func TestFilterTasksDueAfterWithFullDate(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -405,7 +405,7 @@ func TestFilterTasksDueAfterWithFullDate(t *testing.T) {
 }
 
 func TestModifyCommandWithDueDates(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -426,7 +426,7 @@ func TestModifyCommandWithDueDates(t *testing.T) {
 }
 
 func TestTemplatesWithDueDates(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -447,7 +447,7 @@ func TestTemplatesWithDueDates(t *testing.T) {
 }
 
 func TestDueDatesMergeWithContext(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -470,7 +470,7 @@ func TestDueDatesMergeWithContext(t *testing.T) {
 }
 
 func TestNextCommandShowsDueDates(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -487,7 +487,7 @@ func TestNextCommandShowsDueDates(t *testing.T) {
 	tasks := unmarshalTaskArray(t, output)
 	assert.Len(t, tasks, 2)
 
-	var taskWithDue *dstask.Task
+	var taskWithDue *nib.Task
 	for _, task := range tasks {
 		if task.Summary == "Task with due date" {
 			taskWithDue = &task
@@ -499,7 +499,7 @@ func TestNextCommandShowsDueDates(t *testing.T) {
 }
 
 func TestShowResolvedDisplaysDueDates(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -526,7 +526,7 @@ func TestShowResolvedDisplaysDueDates(t *testing.T) {
 }
 
 func TestInvalidDateFormats(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -553,7 +553,7 @@ func TestInvalidDateFormats(t *testing.T) {
 }
 
 func TestCaseInsensitiveDueKeywords(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -580,7 +580,7 @@ func TestCaseInsensitiveDueKeywords(t *testing.T) {
 }
 
 func TestCombinedDueFilters(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -604,7 +604,7 @@ func TestCombinedDueFilters(t *testing.T) {
 }
 
 func TestMultipleDueDates(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -614,7 +614,7 @@ func TestMultipleDueDates(t *testing.T) {
 }
 
 func TestAddMultipleDueDatesWithContext(t *testing.T) {
-	repo, cleanup := makeDstaskRepo(t)
+	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
 	program := testCmd(repo)

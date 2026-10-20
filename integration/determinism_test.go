@@ -15,7 +15,7 @@ import (
 // chosen by inspecting stdout. Nothing may inspect it now, so the same command
 // has to produce the same bytes down a pipe as into a file on disk.
 func TestOutputDoesNotDependOnDestination(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	table := testTableCmd(repo)
@@ -50,10 +50,10 @@ func TestOutputDoesNotDependOnDestination(test *testing.T) {
 		"the table is the default; JSON must be asked for")
 }
 
-// JSON is opt-in. dstask emitted it automatically whenever stdout was not a
+// JSON is opt-in. Earlier versions emitted it automatically whenever stdout was not a
 // terminal, so a consumer could not tell a table from a machine format.
 func TestJSONIsExplicit(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testTableCmd(repo)
@@ -70,7 +70,7 @@ func TestJSONIsExplicit(test *testing.T) {
 // Colour is declared, never detected. NO_COLOR has to reach the escapes even
 // though nothing knows what stdout is attached to.
 func TestNoColorSuppressesEscapes(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testTableCmd(repo)
@@ -90,7 +90,7 @@ func TestNoColorSuppressesEscapes(test *testing.T) {
 // An id names one task, so naming nothing is an error. A filter matching
 // nothing is a legitimate empty answer and stays 0.
 func TestMissingIDExitsNoMatchAndFilterDoesNot(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testTableCmd(repo)
@@ -106,10 +106,10 @@ func TestMissingIDExitsNoMatchAndFilterDoesNot(test *testing.T) {
 	assert.True(test, success)
 }
 
-// dstask skipped the confirmation when stdout was not a terminal and modified
+// Earlier versions skipped the confirmation when stdout was not a terminal and modified
 // every task in the context regardless. Declining must leave them alone.
 func TestBulkModifyWithoutConfirmationChangesNothing(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testCmd(repo)
@@ -136,7 +136,7 @@ func TestBulkModifyWithoutConfirmationChangesNothing(test *testing.T) {
 // `note <id>` with no text must never print the note. Falling through to a
 // read is the defect this project is named for.
 func TestNoteWithoutTextDoesNotPrintTheNote(test *testing.T) {
-	repo, cleanup := makeDstaskRepo(test)
+	repo, cleanup := makeRepo(test)
 	defer cleanup()
 
 	program := testTableCmd(repo)

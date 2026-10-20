@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 import (
 	"fmt"
@@ -51,7 +51,7 @@ func MustGitCommit(repoPath, format string, a ...any) {
 	fmt.Printf("\033[0m")
 }
 
-// GitCommit stages changes in the dstask repository and commits them.
+// GitCommit stages changes in the nib repository and commits them.
 // gitPaths are the only paths a commit is allowed to touch: the status
 // directories and the key high water mark. `git add .` used to stage the whole
 // worktree, so anything else a user happened to leave staged rode along in a
@@ -188,7 +188,7 @@ func gitHead(repoPath string) (string, bool) {
 	return strings.TrimSpace(out), true
 }
 
-// MustGetRepoPath returns the full path to a file within the dstask git repo.
+// MustGetRepoPath returns the full path to a file within the nib git repo.
 // Pass file as an empty string to return the git repo directory itself.
 func MustGetRepoPath(repoPath, directory, file string) string {
 	dir := path.Join(repoPath, directory)
@@ -238,7 +238,7 @@ func InitRepoIfMissing(repoPath string) {
 	}
 
 	MustRunGitCmd(repoPath, "init")
-	fmt.Println("\nAdd a remote repository with:\n\n\tdstask git remote add origin <repo>")
+	fmt.Println("\nAdd a remote repository with:\n\n\tnib git remote add origin <repo>")
 	fmt.Println() // must be a separate call else compiler complains of redundant \n
 }
 

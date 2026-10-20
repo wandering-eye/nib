@@ -8,14 +8,13 @@
 set -x
 set -e -o pipefail
 
-# isolated db locations (repo2 is used for a sync target). Both repository
-# variables are overridden so neither can leak in from the caller's shell, and
-# assigned apart from export so a failed mktemp stops the script instead of
-# leaving them empty, which would fall back to the real store.
+# isolated db locations (repo2 is used for a sync target). NIB_GIT_REPO is
+# overridden so it cannot leak in from the caller's shell, and assigned apart
+# from export so a failed mktemp stops the script instead of leaving it empty,
+# which would fall back to the real store.
 NIB_GIT_REPO=$(mktemp --directory)
 UPSTREAM_BARE_REPO=$(mktemp --directory)
 export NIB_GIT_REPO UPSTREAM_BARE_REPO
-export DSTASK_GIT_REPO=$NIB_GIT_REPO
 
 if [[ -e nib ]]; then
     rm nib
@@ -94,10 +93,6 @@ echo y | ./nib remove 1
 ./nib template give me some things to do P1 +uniqueTag
 ./nib show-templates +uniqueTag
 
-# test import
-./nib import-tw <etc/taskwarrior-export.json
-./nib next
-
 # test git command pass through
 ./nib git status
 
@@ -140,6 +135,5 @@ test -z "$(git -C $NIB_GIT_REPO ls-files --others --exclude=.nib.lock)"
 # executing command. Also help should work before initialisation (and should
 # not init)
 NIB_GIT_REPO=$(mktemp --directory --dry-run)
-export DSTASK_GIT_REPO=$NIB_GIT_REPO
 ./nib help
 echo y | ./nib add test

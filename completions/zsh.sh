@@ -1,9 +1,9 @@
-#compdef dstask
+#compdef nib
 #autoload
 
 
-_dstask() {
-    compadd -- $(dstask _completions "${words[@]}")
+_nib() {
+    compadd -- $(nib _completions "${words[@]}")
 }
 
-compdef _dstask dstask
+compdef _nib nib

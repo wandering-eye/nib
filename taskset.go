@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 // main task data structures
 
@@ -105,7 +105,7 @@ func LoadTaskSet(repoPath string, includeResolved bool) (*TaskSet, error) {
 		}
 	}
 
-	// Records written by dstask carry no key. Assign them here, after every
+	// Records written by earlier versions carry no key. Assign them here, after every
 	// record is loaded, so the keys already on disk are known and cannot be
 	// handed out twice.
 	assigned, err := ts.assignMissingKeys()
@@ -116,7 +116,7 @@ func LoadTaskSet(repoPath string, includeResolved bool) (*TaskSet, error) {
 	// Write them immediately. Holding them in memory only meant the next
 	// command recomputed them over whatever it happened to load, so a key
 	// could name a different record each run -- the very thing a durable key
-	// is for. This happens once, on the first load of a dstask store.
+	// is for. This happens once, on the first load of such a store.
 	if assigned {
 		ts.SavePendingChanges()
 
@@ -457,7 +457,7 @@ func (ts *TaskSet) SavePendingChanges() {
 
 	// The high water mark is committed alongside the records, so a key that has
 	// been issued is never issued again -- not after a resolve, not in a fresh
-	// clone. dstask kept ids in an untracked cache specifically to avoid merge
+	// clone. Earlier versions kept ids in an untracked cache specifically to avoid merge
 	// conflicts between clones. That trade is reversed here: a conflict on this
 	// file is visible and fixable, whereas renumbering the whole store because
 	// a cache file went missing was neither.
@@ -470,7 +470,7 @@ func nextKeyPath(repoPath string) string {
 }
 
 // loadNextKey reads the high water mark. A store that has never had one starts
-// at 1, which is also the case for a plain dstask repository.
+// at 1, which is also the case for a store written by an earlier version.
 func loadNextKey(repoPath string) int {
 	data, err := os.ReadFile(nextKeyPath(repoPath))
 	if err != nil {

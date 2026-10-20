@@ -1,4 +1,4 @@
-package dstask
+package nib
 
 // main task data structures
 
@@ -33,7 +33,7 @@ type Task struct {
 	// ephemeral, used to address tasks quickly. Non-resolved only. Populated
 	// from IDCache or on-the-fly.
 	// Key is persisted and committed, so it survives a clone and is never
-	// reissued. dstask kept it in an untracked .git cache and rebuilt it by
+	// reissued. Earlier versions kept it in an untracked .git cache and rebuilt it by
 	// directory scan, which renumbered the store whenever that file went away.
 	ID int `json:"id" yaml:"key,omitempty"`
 

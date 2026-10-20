@@ -74,4 +74,3 @@ jobs:
         shell: pwsh
         run: |
           go build -o nib.exe ./cmd/nib
-          go build -o dstask-import.exe ./cmd/dstask-import

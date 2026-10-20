@@ -1,6 +1,6 @@
 //go:build windows
 
-package dstask
+package nib
 
 import (
 	"errors"
