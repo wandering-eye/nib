@@ -9,41 +9,36 @@ import (
 
 func TestMakeTempFilename(t *testing.T) {
 	type testCase struct {
-		id       int
-		summary  string
-		expected string
+		reference string
+		summary   string
+		expected  string
 	}
 
 	testCases := []testCase{
 		{
-			1,
+			"1a2b3c4d",
 			`& &`,
-			`nib.*.1-.md`,
+			`nib.*.1a2b3c4d-.md`,
 		},
 		{
-			2147483647, // max int32
+			"1A2B3C4D",
 			`J's $100, != €100`,
-			`nib.*.2147483647-js-100-100.md`,
+			`nib.*.1a2b3c4d-js-100-100.md`,
 		},
 		{
-			-2147483648, // min int32
-			`J's $100, != €100`,
-			`nib.*.-2147483648-js-100-100.md`,
-		},
-		{
-			99,
+			"99",
 			`A simple summary!`,
 			`nib.*.99-a-simple-summary.md`,
 		},
 		{
-			1,
+			"1",
 			`& that's that.`,
 			`nib.*.1-thats-that.md`,
 		},
 	}
 
 	for _, tc := range testCases {
-		tf := MakeTempFilename(tc.id, tc.summary, "md")
+		tf := MakeTempFilename(tc.reference, tc.summary, "md")
 
 		assert.Equal(t, tc.expected, tf)
 

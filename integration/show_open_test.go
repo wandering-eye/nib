@@ -37,7 +37,7 @@ func TestShowOpen(t *testing.T) {
 	tasks = unmarshalTaskArray(t, output)
 	assert.Equal(t, "two", tasks[0].Summary, "setting -one as a context")
 
-	output, exiterr, success = program("2", "done")
+	output, exiterr, success = program(referenceFor(t, repo, "two"), "done")
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-open")

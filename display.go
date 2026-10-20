@@ -3,7 +3,6 @@ package nib
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -97,7 +96,7 @@ func (ts *TaskSet) renderTable(truncate bool) error {
 		task.Display()
 
 		if task.Notes != "" {
-			fmt.Printf("\nNotes on task %d:\n%s\n\n", task.ID, colour("38;5;245", task.Notes))
+			fmt.Printf("\nNotes on task %s:\n%s\n\n", task.ShortUUID(), colour("38;5;245", task.Notes))
 		}
 
 		return nil
@@ -123,9 +122,7 @@ func (ts *TaskSet) renderTable(truncate bool) error {
 
 			table.AddRow(
 				[]string{
-					// id should be at least 2 chars wide to match column header
-					// (headers can be truncated)
-					fmt.Sprintf("%-2d", t.ID),
+					t.ShortUUID(),
 					t.Priority,
 					strings.Join(t.Tags, " "),
 					t.ParseDueDateToStr(),
@@ -155,7 +152,7 @@ func (task *Task) Display() {
 		"Value",
 	)
 
-	table.AddRow([]string{"ID", strconv.Itoa(task.ID)}, RowStyle{})
+	table.AddRow([]string{"ID", task.ShortUUID()}, RowStyle{})
 	table.AddRow([]string{"Priority", task.Priority}, RowStyle{})
 	table.AddRow([]string{"Summary", task.Summary}, RowStyle{})
 	table.AddRow([]string{"Status", task.Status}, RowStyle{})

@@ -23,7 +23,7 @@ func TestShowResolved(t *testing.T) {
 	output, exiterr, success = program("add", "three")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("1", "done")
+	output, exiterr, success = program(referenceFor(t, repo, "one"), "done")
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-resolved")
@@ -35,10 +35,10 @@ func TestShowResolved(t *testing.T) {
 	assert.Equal(t, "one", tasks[0].Summary, "one should be resolved")
 
 	// Test the sorting of resolved tasks
-	_, exiterr, success = program("3", "done")
+	_, exiterr, success = program(referenceFor(t, repo, "three"), "done")
 	assertProgramResult(t, output, exiterr, success)
 
-	_, exiterr, success = program("2", "done")
+	_, exiterr, success = program(referenceFor(t, repo, "two"), "done")
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-resolved")

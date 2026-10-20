@@ -7,23 +7,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 type TaskSet struct {
 	tasks []*Task
 
-	// indices
-	tasksByID   map[int]*Task
 	tasksByUUID map[string]*Task
 
-	// program metadata
-	// nextKey is the committed high water mark: keys are handed out from here
-	// and never reissued.
-	nextKey  int
 	repoPath string
 }
 
@@ -47,25 +43,19 @@ func LoadTaskSet(repoPath string, includeResolved bool) (*TaskSet, error) {
 	// Initialise an empty TaskSet
 	var ts TaskSet
 	ts.tasksByUUID = make(map[string]*Task)
-	ts.tasksByID = make(map[int]*Task)
 
 	ts.repoPath = repoPath
 
-	// Construct our options struct by calling our passed-in TaskSetOpt functions.
-	ts.nextKey = loadNextKey(repoPath)
-
-	// Keys live in the records now, not in an untracked cache.
-
 	var statuses []string
+
+	var keyed bool
 
 	if includeResolved {
 		// expensive to load -- resolved tasks are unbounded
 		statuses = ALL_STATUSES
 	} else {
 		// non-resolved tasks are bounded, so it's OK to load them even if
-		// some are redundant due to query. It's also important to load all
-		// non-resolved tasks at once for consistent IDs in case
-		// SavePendingChanges is not called...!
+		// some are redundant due to query.
 		statuses = NON_RESOLVED_STATUSES
 	}
 
@@ -99,33 +89,22 @@ func LoadTaskSet(repoPath string, includeResolved bool) (*TaskSet, error) {
 				return nil, fmt.Errorf("%s: %w", finfo.Name(), err)
 			}
 
+			if t.LegacyKey != 0 {
+				keyed = true
+			}
+
 			if _, err := ts.LoadTask(t); err != nil {
 				return nil, fmt.Errorf("%s: %w", finfo.Name(), err)
 			}
 		}
 	}
 
-	// Records written by earlier versions carry no key. Assign them here, after every
-	// record is loaded, so the keys already on disk are known and cannot be
-	// handed out twice.
-	assigned, err := ts.assignMissingKeys()
-	if err != nil {
-		return nil, err
-	}
-
-	// Write them immediately. Holding them in memory only meant the next
-	// command recomputed them over whatever it happened to load, so a key
-	// could name a different record each run -- the very thing a durable key
-	// is for. This happens once, on the first load of such a store.
-	if assigned {
-		ts.SavePendingChanges()
-
-		// A no-op here means the keys written match what is already committed,
-		// which is nothing to record rather than something to report.
-		err := GitCommit(repoPath, "Assign durable keys to existing records")
-		var commandErr CommandError
-		if err != nil && (!errors.As(err, &commandErr) || commandErr.Code != EXIT_NO_OP) {
-			return nil, err
+	// The counter is what every store from the numeric-key versions has, so it
+	// marks one still to migrate, including one that an older clone has just
+	// synced keys back into.
+	if keyed || fileExists(filepath.Join(repoPath, LEGACY_KEY_FILE)) {
+		if err := removeNumericKeys(repoPath); err != nil {
+			fmt.Fprintf(os.Stderr, "could not finish removing numeric task keys: %v\n", err)
 		}
 	}
 
@@ -205,10 +184,6 @@ func (ts *TaskSet) MustLoadTask(task Task) Task {
 // LoadTask adds a task to the TaskSet, but only if it has a new uuid or no uuid.
 // Return annotated task.
 func (ts *TaskSet) LoadTask(task Task) (Task, error) {
-	// A task arriving without a UUID is being created rather than read off
-	// disk, which is the moment its key is allocated.
-	isNew := task.UUID == ""
-
 	task.Normalise()
 
 	if task.UUID == "" {
@@ -219,26 +194,10 @@ func (ts *TaskSet) LoadTask(task Task) (Task, error) {
 		return Task{}, err
 	}
 
-	if isNew && task.ID == 0 {
-		task.ID = ts.nextKey
-		ts.nextKey++
-		task.WritePending = true
-	}
-
 	if ts.tasksByUUID[task.UUID] != nil {
 		// load tasks, do not overwrite
 		// TODO ??? (maybe return a nil pointer instead?)
 		return Task{}, nil
-	}
-
-	// A key claimed twice means two records disagree about who owns it, which
-	// no amount of guessing here can resolve. Say so rather than quietly
-	// renumbering one of them, which is what recycling used to do.
-	if task.ID > 0 && ts.tasksByID[task.ID] != nil {
-		return Task{}, fmt.Errorf(
-			"key %d is claimed by both %s and %s; keys must be unique",
-			task.ID, ts.tasksByID[task.ID].UUID, task.UUID,
-		)
 	}
 
 	if task.Created.IsZero() {
@@ -248,7 +207,6 @@ func (ts *TaskSet) LoadTask(task Task) (Task, error) {
 
 	ts.tasks = append(ts.tasks, &task)
 	ts.tasksByUUID[task.UUID] = &task
-	ts.tasksByID[task.ID] = &task
 
 	return task, nil
 }
@@ -299,12 +257,28 @@ func (ts *TaskSet) UpdateTask(task Task) error {
 	return nil
 }
 
-func (ts *TaskSet) Filter(query Query) {
+// Filter hides every task the query does not match. References in the query
+// select tasks by identity first; one that resolves to no task, or to several,
+// is an error rather than an empty result.
+func (ts *TaskSet) Filter(query Query) error {
+	referenced := make(map[string]bool, len(query.References))
+
+	for _, reference := range query.References {
+		task, err := ts.Resolve(reference)
+		if err != nil {
+			return err
+		}
+
+		referenced[task.UUID] = true
+	}
+
 	for _, task := range ts.tasks {
-		if !task.MatchesFilter(query) {
+		if len(referenced) > 0 && !referenced[task.UUID] || !task.MatchesFilter(query) {
 			task.filtered = true
 		}
 	}
+
+	return nil
 }
 
 func (ts *TaskSet) FilterByStatus(status string) {
@@ -321,26 +295,6 @@ func (ts *TaskSet) FilterOrganised() {
 			task.filtered = true
 		}
 	}
-}
-
-func (ts *TaskSet) MustGetByID(id int) Task {
-	task, err := ts.GetByID(id)
-	if err != nil {
-		ExitError(err)
-	}
-
-	return task
-}
-
-func (ts *TaskSet) GetByID(id int) (Task, error) {
-	if ts.tasksByID[id] == nil {
-		// A ref naming nothing is its own outcome, distinct from a filter that
-		// matched nothing. Every command that resolves a ref reports it the same
-		// way rather than flattening it to a generic failure.
-		return Task{}, NoMatchError("no open task with id %v exists", id)
-	}
-
-	return *ts.tasksByID[id], nil
 }
 
 func (ts *TaskSet) Tasks() []Task {
@@ -447,48 +401,6 @@ func (ts *TaskSet) SavePendingChanges() {
 			task.SaveToDisk(ts.repoPath)
 		}
 	}
-
-	// The high water mark is committed alongside the records, so a key that has
-	// been issued is never issued again -- not after a resolve, not in a fresh
-	// clone. Earlier versions kept ids in an untracked cache specifically to avoid merge
-	// conflicts between clones. That trade is reversed here: a conflict on this
-	// file is visible and fixable, whereas renumbering the whole store because
-	// a cache file went missing was neither.
-	ts.mustSaveNextKey()
-}
-
-// nextKeyPath is the committed high water mark.
-func nextKeyPath(repoPath string) string {
-	return filepath.Join(repoPath, "next-key")
-}
-
-// loadNextKey reads the high water mark. A store that has never had one starts
-// at 1, which is also the case for a store written by an earlier version.
-func loadNextKey(repoPath string) int {
-	data, err := os.ReadFile(nextKeyPath(repoPath))
-	if err != nil {
-		return 1
-	}
-
-	key, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil || key < 1 {
-		return 1
-	}
-
-	return key
-}
-
-func (ts *TaskSet) mustSaveNextKey() {
-	next := ts.nextKey
-	for _, task := range ts.tasks {
-		if task.ID >= next {
-			next = task.ID + 1
-		}
-	}
-
-	if err := os.WriteFile(nextKeyPath(ts.repoPath), []byte(strconv.Itoa(next)+"\n"), 0o600); err != nil {
-		ExitFail("could not save the key high water mark: %v", err)
-	}
 }
 
 type SortByDirection string
@@ -498,77 +410,16 @@ const (
 	Descending SortByDirection = "descending"
 )
 
-// assignMissingKeys gives a key to every record that has none. The order comes
-// from the whole store rather than from whatever this command loaded, because a
-// key that depends on which statuses were read is the defect this replaced: the
-// same record would answer to a different number depending on the command.
-func (ts *TaskSet) assignMissingKeys() (bool, error) {
-	var keyless bool
+// legacyKeyLine is the top-level key entry earlier versions wrote. Only a
+// top-level entry can start at column 0, so this never matches inside notes.
+var legacyKeyLine = regexp.MustCompile(`(?m)^key:[ \t]*[0-9]+[ \t]*(\r?\n|\z)`)
 
-	next := ts.nextKey
-
-	for _, task := range ts.tasks {
-		if task.ID > 0 {
-			if task.ID >= next {
-				next = task.ID + 1
-			}
-
-			continue
-		}
-
-		keyless = true
-	}
-
-	ts.nextKey = next
-
-	if !keyless {
-		return false, nil
-	}
-
-	order, highest, err := keylessOrderAcrossStore(ts.repoPath)
-	if err != nil {
-		return false, err
-	}
-
-	if highest >= ts.nextKey {
-		ts.nextKey = highest + 1
-	}
-
-	for _, task := range ts.tasks {
-		if task.ID > 0 {
-			continue
-		}
-
-		position, known := order[task.UUID]
-		if !known {
-			return false, fmt.Errorf("%s has no key and was not found in the store", task.UUID)
-		}
-
-		task.ID = ts.nextKey + position
-		task.WritePending = true
-		ts.tasksByID[task.ID] = task
-	}
-
-	ts.nextKey += len(order)
-
-	return true, nil
-}
-
-// keylessOrderAcrossStore walks every status directory and returns the position
-// each keyless record takes in creation order, plus the highest key already in
-// use. Reading the whole store is the price of a numbering that does not depend
-// on the command; it only happens while records still lack keys.
-func keylessOrderAcrossStore(repoPath string) (map[string]int, int, error) {
-	type record struct {
-		uuid    string
-		created time.Time
-	}
-
-	var (
-		keyless []record
-		highest int
-	)
-
+// removeNumericKeys rewrites every record that still carries a numeric key
+// without it, deletes the counter, and commits both as one change. Every
+// status is swept, not only the ones this command loads, so resolved records
+// lose their keys too. Each record is rewritten where it lies and nothing else
+// is touched, so running it again on a migrated store changes nothing.
+func removeNumericKeys(repoPath string) error {
 	for _, status := range ALL_STATUSES {
 		entries, err := os.ReadDir(filepath.Join(repoPath, status))
 		if err != nil {
@@ -582,35 +433,60 @@ func keylessOrderAcrossStore(repoPath string) (map[string]int, int, error) {
 
 			path := filepath.Join(repoPath, status, entry.Name())
 
+			// A record that cannot be read is reported by the load that needs
+			// it; it is no reason to leave the others keyed.
 			task, err := unmarshalTask(path, entry, status)
-			if err != nil {
-				return nil, 0, fmt.Errorf("%s: %w", entry.Name(), err)
-			}
-
-			if task.ID > 0 {
-				if task.ID > highest {
-					highest = task.ID
-				}
-
+			if err != nil || task.LegacyKey == 0 {
 				continue
 			}
 
-			keyless = append(keyless, record{uuid: task.UUID, created: task.Created.UTC()})
+			if err := removeKeyFromRecord(path, task); err != nil {
+				return fmt.Errorf("%s: %w", entry.Name(), err)
+			}
 		}
 	}
 
-	sort.SliceStable(keyless, func(first, second int) bool {
-		if !keyless[first].created.Equal(keyless[second].created) {
-			return keyless[first].created.Before(keyless[second].created)
-		}
-
-		return keyless[first].uuid < keyless[second].uuid
-	})
-
-	order := make(map[string]int, len(keyless))
-	for position, entry := range keyless {
-		order[entry.uuid] = position
+	if err := os.Remove(filepath.Join(repoPath, LEGACY_KEY_FILE)); err != nil &&
+		!os.IsNotExist(err) {
+		return err
 	}
 
-	return order, highest, nil
+	// A no-op means the records already matched what is committed, which is
+	// nothing to record rather than something to report.
+	err := GitCommit(repoPath, "Remove numeric task keys")
+
+	var commandErr CommandError
+	if err != nil && (!errors.As(err, &commandErr) || commandErr.Code != EXIT_NO_OP) {
+		return err
+	}
+
+	return nil
+}
+
+// removeKeyFromRecord deletes the key line and leaves every other byte as it
+// was. Re-serialising the whole record would also restyle notes written by
+// other tools, turning a one-line change into a rewrite. A key in some other
+// form is left to the serialiser.
+func removeKeyFromRecord(path string, task Task) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	stripped := legacyKeyLine.ReplaceAll(data, nil)
+
+	var remaining Task
+	if err := yaml.Unmarshal(stripped, &remaining); err != nil || remaining.LegacyKey != 0 {
+		task.LegacyKey = 0
+
+		return writeRecord(path, task)
+	}
+
+	return os.WriteFile(path, stripped, 0o600)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+
+	return err == nil
 }

@@ -16,7 +16,7 @@ func TestShowActive(t *testing.T) {
 	output, exiterr, success := program("add", "+one", "one")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("start", "1")
+	output, exiterr, success = program("start", referenceFor(t, repo, "one"))
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-active")
@@ -27,7 +27,7 @@ func TestShowActive(t *testing.T) {
 	tasks = unmarshalTaskArray(t, output)
 	assert.Equal(t, "one", tasks[0].Summary, "one should be started")
 
-	output, exiterr, success = program("stop", "1")
+	output, exiterr, success = program("stop", referenceFor(t, repo, "one"))
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-active")

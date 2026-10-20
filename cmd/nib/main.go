@@ -50,9 +50,9 @@ func main() {
 	nib.PrepareRepoDirectory(conf.Repo)
 
 	// Taken before the repository is initialised: two first invocations would
-	// otherwise race to init it. Held for the whole command so a read, the key
-	// it allocates and the commit that follows are one step. The kernel holds
-	// it, so a process exiting releases it.
+	// otherwise race to init it. Held for the whole command so a read, the
+	// write and the commit that follows are one step. The kernel holds it, so a
+	// process exiting releases it.
 	unlock, err := nib.LockRepo(conf.Repo)
 	if err != nil {
 		nib.ExitError(err)

@@ -35,7 +35,7 @@ func TestDecliningTheFirstRunCreatesNothing(test *testing.T) {
 }
 
 // Two first runs both see no repository and both get the prompt; the lock
-// still serialises init and the commits, so both tasks land with distinct keys.
+// still serialises init and the commits, so both tasks land.
 func TestConcurrentFirstRunsBothSucceed(test *testing.T) {
 	repo := filepath.Join(test.TempDir(), "store")
 
@@ -75,6 +75,6 @@ func TestConcurrentFirstRunsBothSucceed(test *testing.T) {
 	assert.Len(test, tasks, 2)
 
 	if len(tasks) == 2 {
-		assert.NotEqual(test, tasks[0].ID, tasks[1].ID)
+		assert.NotEqual(test, tasks[0].UUID, tasks[1].UUID)
 	}
 }

@@ -32,6 +32,14 @@ trap cleanup EXIT
 
 go build -o nib ./cmd/nib
 
+# run a creating command and print the short id it reports, e.g. "Added 1a2b3c4d: ..."
+created() {
+    local id
+    id=$(./nib "$@" | sed -n 's/^[A-Za-z ]*\([0-9a-f]\{8\}\): .*/\1/p')
+    test -n "$id"
+    echo "$id"
+}
+
 # initialse git repo
 git -C $NIB_GIT_REPO init -b master
 git -C $NIB_GIT_REPO config user.email "you@example.com"
@@ -40,23 +48,23 @@ git -C $UPSTREAM_BARE_REPO init --bare -b master
 
 # general task state management and commands
 ./nib help
-./nib add test task +foo project:bar
-./nib start 1
-./nib stop 1
-echo y | ./nib remove 1
-./nib add re-add add test task +foo project:bar
-./nib add another task
+first=$(created add test task +foo project:bar)
+./nib start "$first"
+./nib stop "$first"
+echo y | ./nib remove "$first"
+readded=$(created add re-add add test task +foo project:bar)
+another=$(created add another task)
 ./nib +foo
 ./nib -foo
 ./nib -project:foo
-./nib 3 done
+./nib "$another" done
 ./nib undo
 ./nib log something
 ./nib +foo
-./nib note 2 this is a note
+./nib note "$readded" this is a note
 ./nib context +foo
 ./nib next
-./nib 2 done
+./nib "$readded" done
 ./nib show-resolved
 
 ./nib show-projects
@@ -77,17 +85,17 @@ echo y | ./nib remove 1
 ./nib context
 
 # try to resolve a task with an incomplete tasklist: should fail
-./nib add a tasklist task -- "- [ ] incomplete task"
-! ./nib 7 done
+tasklist=$(created add a tasklist task -- "- [ ] incomplete task")
+! ./nib "$tasklist" done
 
 # test template functions
-./nib add task to copy
-./nib add template:8 +copiedTask
-./nib template 9
-# Task 9 should now be a template
+original=$(created add task to copy)
+copied=$(created add template:"$original" +copiedTask)
+./nib template "$copied"
+# the copy should now be a template
 ./nib show-templates +copiedTask
 # copy Template with some modifications
-./nib add template:9 -copiedTask +copiedTemplate
+./nib add template:"$copied" -copiedTask +copiedTemplate
 ./nib show-open +copiedTemplate
 # Create new template from CMD line.
 ./nib template give me some things to do P1 +uniqueTag
@@ -106,21 +114,25 @@ git -C $NIB_GIT_REPO push -u origin master:master
 
 # cause independent changes (could be from separate downstream repositories,
 # but its easier and equivalent to simulate this with a hard reset)
-./nib add eggs test task +foo project:bar
+eggs=$(created add eggs test task +foo project:bar)
 ./nib sync
 ./nib git reset --hard HEAD~1
-./nib add bacon test task +foo project:bar
+bacon=$(created add bacon test task +foo project:bar)
 ./nib sync
 
-# Known failure, https://github.com/wandering-eye/nib/issues/1: both clones
-# allocate the same key and the merge is clean, so the store stops loading.
-# Passing fails the suite so the fix is noticed and this wrapper removed.
-if diverged_output=$(./nib next 2>&1); then
-    echo "issue #1 check passed unexpectedly; remove its known-failure wrapper" >&2
-    exit 1
-fi
-grep -q "keys must be unique" <<<"$diverged_output"
-echo "known failure, issue #1: diverged clones share a key, failed as expected"
+# both clones added a task before syncing (issue #1); after the merge every
+# command still works and both tasks are there
+./nib next
+open_tasks=$(./nib show-open)
+grep -q "eggs test task" <<<"$open_tasks"
+grep -q "bacon test task" <<<"$open_tasks"
+./nib "$eggs"
+./nib "$bacon"
+./nib "$eggs" done
+./nib "$bacon" done
+resolved_tasks=$(./nib show-resolved)
+grep -q "eggs test task" <<<"$resolved_tasks"
+grep -q "bacon test task" <<<"$resolved_tasks"
 
 # there should be no staged changes
 git -C $NIB_GIT_REPO diff-index --quiet --cached HEAD --

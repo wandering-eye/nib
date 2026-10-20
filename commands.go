@@ -13,7 +13,7 @@ import (
 
 // CommandAdd adds a new task to the task database.
 func CommandAdd(conf Config, ctx, query Query) error {
-	if query.Text == "" && query.Template == 0 {
+	if query.Text == "" && query.TemplateReference == "" {
 		return errors.New("task description or template required")
 	}
 	if query.DateFilter != "" && query.DateFilter != "in" && query.DateFilter != "on" {
@@ -25,10 +25,10 @@ func CommandAdd(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	if query.Template > 0 {
+	if query.TemplateReference != "" {
 		var taskSummary string
 
-		tt := ts.MustGetByID(query.Template)
+		tt := ts.MustResolve(query.TemplateReference)
 		query = query.Merge(ctx)
 
 		if query.Text != "" {
@@ -108,8 +108,8 @@ func CommandDone(conf Config, ctx, query Query) error {
 		return errors.New("operators not valid in this context")
 	}
 
-	if len(query.IDs) == 0 {
-		return errors.New("no ID(s) specified")
+	if len(query.References) == 0 {
+		return errors.New("no task specified")
 	}
 
 	ts, err := LoadTaskSet(conf.Repo, false)
@@ -117,10 +117,10 @@ func CommandDone(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	// iterate over IDs instead of filtering; it's clearer and enables us to
-	// test each ID exists, and ignore context/operators
-	for _, id := range query.IDs {
-		task := ts.MustGetByID(id)
+	// iterate over references instead of filtering; it's clearer and enables
+	// us to test each one resolves, and ignore context/operators
+	for _, reference := range query.References {
+		task := ts.MustResolve(reference)
 		task.Status = STATUS_RESOLVED
 		task.Resolved = time.Now().UTC()
 
@@ -142,8 +142,8 @@ func CommandEdit(conf Config, ctx, query Query) error {
 		return errors.New("operators not valid in this context")
 	}
 
-	if len(query.IDs) == 0 {
-		return errors.New("no ID(s) specified")
+	if len(query.References) == 0 {
+		return errors.New("no task specified")
 	}
 
 	ts, err := LoadTaskSet(conf.Repo, false)
@@ -151,8 +151,8 @@ func CommandEdit(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	for _, id := range query.IDs {
-		task := ts.MustGetByID(id)
+	for _, reference := range query.References {
+		task := ts.MustResolve(reference)
 		data, err := yaml.Marshal(&task)
 		if err != nil {
 			// TODO present error to user, specific error message is important
@@ -160,7 +160,7 @@ func CommandEdit(conf Config, ctx, query Query) error {
 		}
 
 		for {
-			edited := MustEditBytes(data, MakeTempFilename(task.ID, task.Summary, "yml"))
+			edited := MustEditBytes(data, MakeTempFilename(task.ShortUUID(), task.Summary, "yml"))
 
 			err = yaml.Unmarshal(edited, &task)
 			if err == nil {
@@ -220,7 +220,7 @@ func CommandLog(conf Config, ctx, query Query) error {
 	return nil
 }
 
-// CommandModify applies a change to tasks specified by ID, or all tasks in
+// CommandModify applies a change to the referenced tasks, or all tasks in
 // current context.
 func CommandModify(conf Config, ctx, query Query) error {
 	if !query.HasOperators() {
@@ -232,13 +232,15 @@ func CommandModify(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	if len(query.IDs) == 0 {
-		ts.Filter(ctx)
+	if len(query.References) == 0 {
+		if err := ts.Filter(ctx); err != nil {
+			return err
+		}
 
 		// Confirmation is not gated on a terminal check: piped, earlier versions skipped
 		// the prompt and silently modified every task in the context.
 		ConfirmOrAbort(
-			"no IDs specified. Apply to all %d tasks in current ctx?",
+			"no tasks specified. Apply to all %d tasks in current ctx?",
 			len(ts.Tasks()),
 		)
 
@@ -249,8 +251,8 @@ func CommandModify(conf Config, ctx, query Query) error {
 			MustGitCommit(conf.Repo, "Modified %s", task)
 		}
 	} else {
-		for _, id := range query.IDs {
-			task := ts.MustGetByID(id)
+		for _, reference := range query.References {
+			task := ts.MustResolve(reference)
 			task.Modify(query)
 			ts.MustUpdateTask(task)
 			ts.SavePendingChanges()
@@ -269,22 +271,25 @@ func CommandNext(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	if len(query.IDs) > 0 {
-		// addressing task by ID, ignores context
+	if len(query.References) > 0 {
+		// addressing a task directly ignores context
 		if query.HasOperators() {
-			return errors.New("operators not valid when addressing task by ID")
+			return errors.New("operators not valid when addressing a task directly")
 		}
 	} else {
 		// apply context
 		query = query.Merge(ctx)
 	}
 
-	ts.Filter(query)
+	if err := ts.Filter(query); err != nil {
+		return err
+	}
 
-	// An ID names one specific task, so naming nothing is an error. A filter
-	// matching nothing is not: an empty result is a legitimate answer.
-	if len(query.IDs) > 0 && len(ts.Tasks()) == 0 {
-		return NoMatchError("no task with id %v", query.IDs)
+	// A reference names one specific task, so showing nothing is an error. A
+	// filter matching nothing is not: an empty result is a legitimate answer.
+	// A reference to a hidden task, such as a template, lands here.
+	if len(query.References) > 0 && len(ts.Tasks()) == 0 {
+		return NoMatchError("no task to show for %v", query.References)
 	}
 	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
@@ -295,8 +300,8 @@ func CommandNext(conf Config, ctx, query Query) error {
 
 // CommandNote edits or prints the markdown note associated with the task.
 func CommandNote(conf Config, ctx, query Query) error {
-	if len(query.IDs) == 0 {
-		return errors.New("no ID(s) specified")
+	if len(query.References) == 0 {
+		return errors.New("no task specified")
 	}
 
 	if query.HasOperators() {
@@ -308,8 +313,8 @@ func CommandNote(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	for _, id := range query.IDs {
-		task := ts.MustGetByID(id)
+	for _, reference := range query.References {
+		task := ts.MustResolve(reference)
 		if query.Text != "" {
 			if task.Notes == "" {
 				task.Notes = query.Text
@@ -325,7 +330,7 @@ func CommandNote(conf Config, ctx, query Query) error {
 			task.Notes = string(
 				MustEditBytes(
 					[]byte(task.Notes),
-					MakeTempFilename(task.ID, task.Summary, "md"),
+					MakeTempFilename(task.ShortUUID(), task.Summary, "md"),
 				),
 			)
 			ts.MustUpdateTask(task)
@@ -339,8 +344,8 @@ func CommandNote(conf Config, ctx, query Query) error {
 
 // CommandOpen opens a task URL in the browser, if the task has a URL.
 func CommandOpen(conf Config, ctx, query Query) error {
-	if len(query.IDs) == 0 {
-		return errors.New("no ID(s) specified")
+	if len(query.References) == 0 {
+		return errors.New("no task specified")
 	}
 
 	if query.HasOperators() {
@@ -352,12 +357,12 @@ func CommandOpen(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	for _, id := range query.IDs {
-		task := ts.MustGetByID(id)
+	for _, reference := range query.References {
+		task := ts.MustResolve(reference)
 		urls := xurls.Relaxed().FindAllString(task.Summary+" "+task.Notes, -1)
 
 		if len(urls) == 0 {
-			return fmt.Errorf("no URLs found in task %v", task.ID)
+			return fmt.Errorf("no URLs found in task %s", task.ShortUUID())
 		}
 
 		for _, url := range urls {
@@ -368,10 +373,10 @@ func CommandOpen(conf Config, ctx, query Query) error {
 	return nil
 }
 
-// CommandRemove removes a task by ID from the database.
+// CommandRemove removes a task from the database.
 func CommandRemove(conf Config, ctx, query Query) error {
-	if len(query.IDs) == 0 {
-		return errors.New("no ID(s) specified")
+	if len(query.References) == 0 {
+		return errors.New("no task specified")
 	}
 
 	if query.HasOperators() {
@@ -383,18 +388,18 @@ func CommandRemove(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	for _, id := range query.IDs {
-		task := ts.MustGetByID(id)
+	for _, reference := range query.References {
+		task := ts.MustResolve(reference)
 		fmt.Println(task)
 	}
 
 	ConfirmOrAbort(
 		"\nThe above %d task(s) will be deleted without checking subtasks. Continue?",
-		len(query.IDs),
+		len(query.References),
 	)
 
-	for _, id := range query.IDs {
-		task := ts.MustGetByID(id)
+	for _, reference := range query.References {
+		task := ts.MustResolve(reference)
 		// Mark our task for deletion
 		task.Deleted = true
 
@@ -421,7 +426,9 @@ func CommandShowActive(conf Config, ctx, query Query) error {
 	}
 
 	query = query.Merge(ctx)
-	ts.Filter(query)
+	if err := ts.Filter(query); err != nil {
+		return err
+	}
 	ts.FilterByStatus(STATUS_ACTIVE)
 	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
@@ -433,7 +440,7 @@ func CommandShowActive(conf Config, ctx, query Query) error {
 // CommandShowProjects prints a list of projects associated with all tasks.
 // Ignores context/query for valid output.
 func CommandShowProjects(conf Config, ctx, query Query) error {
-	if len(query.IDs) > 0 || query.HasOperators() {
+	if len(query.References) > 0 || query.HasOperators() {
 		return errors.New("query/context not supported for show-projects")
 	}
 
@@ -457,7 +464,9 @@ func CommandShowOpen(conf Config, ctx, query Query) error {
 	}
 
 	query = query.Merge(ctx)
-	ts.Filter(query)
+	if err := ts.Filter(query); err != nil {
+		return err
+	}
 	if err := ts.DisplayByNext(ctx, false, query.JSON); err != nil {
 		return err
 	}
@@ -473,7 +482,9 @@ func CommandShowPaused(conf Config, ctx, query Query) error {
 	}
 
 	query = query.Merge(ctx)
-	ts.Filter(query)
+	if err := ts.Filter(query); err != nil {
+		return err
+	}
 	ts.FilterByStatus(STATUS_PAUSED)
 	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
@@ -492,7 +503,9 @@ func CommandShowResolved(conf Config, ctx, query Query) error {
 	query = query.Merge(ctx)
 
 	ts.UnHide()
-	ts.Filter(query)
+	if err := ts.Filter(query); err != nil {
+		return err
+	}
 	ts.FilterByStatus(STATUS_RESOLVED)
 
 	return ts.DisplayByWeek(query.JSON)
@@ -506,7 +519,9 @@ func CommandShowTags(conf Config, ctx, query Query) error {
 	}
 
 	query = query.Merge(ctx)
-	ts.Filter(query)
+	if err := ts.Filter(query); err != nil {
+		return err
+	}
 
 	for tag := range ts.GetTags() {
 		fmt.Println(tag)
@@ -526,7 +541,9 @@ func CommandShowTemplates(conf Config, ctx, query Query) error {
 	ts.FilterByStatus(STATUS_TEMPLATE)
 
 	query = query.Merge(ctx)
-	ts.Filter(query)
+	if err := ts.Filter(query); err != nil {
+		return err
+	}
 	if err := ts.DisplayByNext(ctx, true, query.JSON); err != nil {
 		return err
 	}
@@ -537,7 +554,7 @@ func CommandShowTemplates(conf Config, ctx, query Query) error {
 // CommandShowUnorganised prints a list of tasks without tags or projects.
 // no context / query valid.
 func CommandShowUnorganised(conf Config, ctx, query Query) error {
-	if len(query.IDs) > 0 || query.HasOperators() {
+	if len(query.References) > 0 || query.HasOperators() {
 		return errors.New("query/context not used for show-unorganised")
 	}
 
@@ -554,7 +571,7 @@ func CommandShowUnorganised(conf Config, ctx, query Query) error {
 	return nil
 }
 
-// CommandStart marks an existing task as started, by ID. If no ID is
+// CommandStart marks an existing task as started. If no task is
 // specified, it creates a new task and starts it.
 func CommandStart(conf Config, ctx, query Query) error {
 	ts, err := LoadTaskSet(conf.Repo, false)
@@ -562,14 +579,14 @@ func CommandStart(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	if query.Template > 0 {
+	if query.TemplateReference != "" {
 		return errors.New("templates not yet supported for start command")
 	}
 
-	if len(query.IDs) > 0 {
-		// start given tasks by IDs
-		for _, id := range query.IDs {
-			task := ts.MustGetByID(id)
+	if len(query.References) > 0 {
+		// start the given tasks
+		for _, reference := range query.References {
+			task := ts.MustResolve(reference)
 			task.Status = STATUS_ACTIVE
 
 			if query.Text != "" {
@@ -582,7 +599,11 @@ func CommandStart(conf Config, ctx, query Query) error {
 			MustGitCommit(conf.Repo, "Started %s", task)
 
 			if task.Notes != "" {
-				fmt.Printf("\nNotes on task %d:\n\033[38;5;245m%s\033[0m\n\n", task.ID, task.Notes)
+				fmt.Printf(
+					"\nNotes on task %s:\n\033[38;5;245m%s\033[0m\n\n",
+					task.ShortUUID(),
+					task.Notes,
+				)
 			}
 		}
 	} else if query.Text != "" {
@@ -601,7 +622,7 @@ func CommandStart(conf Config, ctx, query Query) error {
 		ts.SavePendingChanges()
 		MustGitCommit(conf.Repo, "Added and started %s", task)
 	} else {
-		return errors.New("nothing to do -- specify an ID or describe a task")
+		return errors.New("nothing to do -- specify a task or describe a new one")
 	}
 
 	return nil
@@ -618,12 +639,12 @@ func CommandStop(conf Config, ctx, query Query) error {
 		return errors.New("operators not valid in this context")
 	}
 
-	if len(query.IDs) == 0 {
-		return errors.New("no ID(s) specified")
+	if len(query.References) == 0 {
+		return errors.New("no task specified")
 	}
 
-	for _, id := range query.IDs {
-		task := ts.MustGetByID(id)
+	for _, reference := range query.References {
+		task := ts.MustResolve(reference)
 		task.Status = STATUS_PAUSED
 
 		if query.Text != "" {
@@ -653,9 +674,9 @@ func CommandTemplate(conf Config, ctx, query Query) error {
 		return err
 	}
 
-	if len(query.IDs) > 0 {
-		for _, id := range query.IDs {
-			task := ts.MustGetByID(id)
+	if len(query.References) > 0 {
+		for _, reference := range query.References {
+			task := ts.MustResolve(reference)
 			task.Status = STATUS_TEMPLATE
 
 			ts.MustUpdateTask(task)

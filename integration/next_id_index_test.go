@@ -6,7 +6,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func TestNextByIDIndex(t *testing.T) {
+func TestNextByReference(t *testing.T) {
 	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
@@ -18,14 +18,14 @@ func TestNextByIDIndex(t *testing.T) {
 	output, exiterr, success = program("add", "two", "+two")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("1")
+	output, exiterr, success = program(referenceFor(t, repo, "one"))
 	assertProgramResult(t, output, exiterr, success)
 
 	tasks := unmarshalTaskArray(t, output)
-	assert.Equal(t, "one", tasks[0].Summary, "find task 1 by ID")
+	assert.Equal(t, "one", tasks[0].Summary, "find task one by reference")
 }
 
-func TestNextByIDIndexOutsideContext(t *testing.T) {
+func TestNextByReferenceOutsideContext(t *testing.T) {
 	repo, cleanup := makeRepo(t)
 	defer cleanup()
 
@@ -40,7 +40,7 @@ func TestNextByIDIndexOutsideContext(t *testing.T) {
 	output, exiterr, success = program("context", "+one")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("2")
+	output, exiterr, success = program(referenceFor(t, repo, "two"))
 	assertProgramResult(t, output, exiterr, success)
 
 	tasks := unmarshalTaskArray(t, output)
@@ -48,12 +48,12 @@ func TestNextByIDIndexOutsideContext(t *testing.T) {
 		t,
 		"two",
 		tasks[0].Summary,
-		"find task 2 by ID (context ignored with ID based addressing)",
+		"find task two by reference (context ignored when addressing a task directly)",
 	)
 
 	output, exiterr, success = program("next")
 	assertProgramResult(t, output, exiterr, success)
 
 	tasks = unmarshalTaskArray(t, output)
-	assert.Equal(t, 1, tasks[0].ID, "1 is the only ID in our current context")
+	assert.Equal(t, "one", tasks[0].Summary, "one is the only task in our current context")
 }

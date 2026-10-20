@@ -20,7 +20,7 @@ const (
 )
 
 // repositoryLock is an exclusive lock over one nib repository, held for the
-// whole of allocate -> write -> commit. The lock is kernel held, so a process
+// whole of read -> write -> commit. The lock is kernel held, so a process
 // that dies releases it and a lock file left behind by a crash is not a stale
 // lock at all; a lock that is genuinely held is waited for, never bypassed.
 type repositoryLock struct {

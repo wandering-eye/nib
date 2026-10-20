@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
@@ -413,7 +412,7 @@ func TestModifyCommandWithDueDates(t *testing.T) {
 	output, exiterr, success := program("add", "Task 1", "due:2025-06-01")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("modify", "1", "due:2025-06-18")
+	output, exiterr, success = program("modify", referenceFor(t, repo, "Task 1"), "due:2025-06-18")
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("next", "due:2025-06-18")
@@ -434,7 +433,11 @@ func TestTemplatesWithDueDates(t *testing.T) {
 	output, exiterr, success := program("template", "Template 1", "due:2025-10-31")
 	assertProgramResult(t, output, exiterr, success)
 
-	output, exiterr, success = program("add", "template:1", "task with due date from template")
+	output, exiterr, success = program(
+		"add",
+		"template:"+referenceFor(t, repo, "Template 1"),
+		"task with due date from template",
+	)
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("next", "due:2025-10-31")
@@ -511,9 +514,8 @@ func TestShowResolvedDisplaysDueDates(t *testing.T) {
 	assertProgramResult(t, output, exiterr, success)
 
 	tasks := unmarshalTaskArray(t, output)
-	taskID := tasks[0].ID
 
-	output, exiterr, success = program("done", strconv.Itoa(taskID))
+	output, exiterr, success = program("done", tasks[0].UUID)
 	assertProgramResult(t, output, exiterr, success)
 
 	output, exiterr, success = program("show-resolved")

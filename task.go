@@ -30,12 +30,10 @@ type Task struct {
 	// is new or has changed. Need to write to disk.
 	WritePending bool `json:"-"      yaml:"-"`
 
-	// ephemeral, used to address tasks quickly. Non-resolved only. Populated
-	// from IDCache or on-the-fly.
-	// Key is persisted and committed, so it survives a clone and is never
-	// reissued. Earlier versions kept it in an untracked .git cache and rebuilt it by
-	// directory scan, which renumbered the store whenever that file went away.
-	ID int `json:"id" yaml:"key,omitempty"`
+	// LegacyKey is the numeric key earlier versions wrote into every record.
+	// It is read only so the load can tell a record still carries one; it is
+	// cleared before anything is written, so it never reaches disk again.
+	LegacyKey int `json:"-" yaml:"key,omitempty"`
 
 	// Deleted, if true, marks this task for deletion
 	Deleted bool `json:"-" yaml:"-"`
@@ -65,7 +63,7 @@ type Task struct {
 }
 
 // Equals returns whether t2 equals task.
-// for equality, we only consider "core properties", we ignore WritePending, ID, Deleted and filtered.
+// for equality, we only consider "core properties", we ignore WritePending, LegacyKey, Deleted and filtered.
 func (t Task) Equals(t2 Task) bool {
 	if t2.UUID != t.UUID {
 		return false
@@ -147,19 +145,24 @@ func unmarshalTask(path string, finfo os.DirEntry, status string) (Task, error) 
 }
 
 func (t Task) String() string {
-	if t.ID > 0 {
-		return fmt.Sprintf("%v: %s", t.ID, t.Summary)
+	if t.UUID != "" {
+		return fmt.Sprintf("%s: %s", t.ShortUUID(), t.Summary)
 	}
 
 	return t.Summary
 }
 
-func (t *Task) MatchesFilter(query Query) bool {
-	// IDs were specified but none match (OR logic)
-	if len(query.IDs) > 0 && !IntSliceContains(query.IDs, t.ID) {
-		return false
+// ShortUUID is the leading part of the UUID shown wherever a task is listed.
+// Any prefix of at least REFERENCE_MIN_LENGTH characters refers to the task.
+func (t Task) ShortUUID() string {
+	if len(t.UUID) < SHORT_UUID_LENGTH {
+		return t.UUID
 	}
 
+	return t.UUID[:SHORT_UUID_LENGTH]
+}
+
+func (t *Task) MatchesFilter(query Query) bool {
 	for _, tag := range query.Tags {
 		if !StrSliceContains(t.Tags, tag) {
 			return false
@@ -236,6 +239,8 @@ func (t *Task) Normalise() {
 	if t.Priority == "" {
 		t.Priority = PRIORITY_NORMAL
 	}
+
+	t.LegacyKey = 0
 }
 
 // normalise the task before validating!
@@ -322,24 +327,8 @@ func (t *Task) SaveToDisk(repoPath string) {
 		if err := os.Remove(filepath); err != nil {
 			ExitFail("Could not remove task %s: %v", filepath, err)
 		}
-	} else {
-		// Task is not deleted, and will be written to disk to a directory
-		// that indicates its current status. We make a shallow copy first,
-		// and we set Status to empty string. This shallow copy is serialised
-		// to disk, with the Status field omitted. This avoids redundant data.
-		taskCp := *t
-		taskCp.Status = ""
-
-		d, err := yaml.Marshal(&taskCp)
-		if err != nil {
-			// TODO present error to user, specific error message is important
-			ExitFail("Failed to marshal task %s", t)
-		}
-
-		err = os.WriteFile(filepath, d, 0o600)
-		if err != nil {
-			ExitFail("Failed to write task %s", t)
-		}
+	} else if err := writeRecord(filepath, *t); err != nil {
+		ExitFail("Failed to write task %s: %v", t, err)
 	}
 
 	// Delete task from other status directories. Only one copy should exist, at most.
@@ -357,6 +346,19 @@ func (t *Task) SaveToDisk(repoPath string) {
 			}
 		}
 	}
+}
+
+// writeRecord serialises a task to the given path. The status is the
+// directory the record lives in, so it is left out of the file.
+func writeRecord(path string, task Task) error {
+	task.Status = ""
+
+	data, err := yaml.Marshal(&task)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0o600)
 }
 
 // ParseDueDateToStr renders a due date the way a person reads it. The stored

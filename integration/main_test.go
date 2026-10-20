@@ -6,11 +6,13 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/wandering-eye/nib"
+	yaml "gopkg.in/yaml.v2"
 	"gotest.tools/assert"
 )
 
@@ -151,6 +153,34 @@ func unmarshalProjectArray(t *testing.T, data []byte) []nib.Project {
 	assert.NilError(t, err)
 
 	return projects
+}
+
+// referenceFor reads the store directly and returns the short UUID the
+// program shows for the task with this summary, whatever its status.
+func referenceFor(t *testing.T, repoPath, summary string) string {
+	t.Helper()
+
+	records, err := filepath.Glob(filepath.Join(repoPath, "*", "*.yml"))
+	assert.NilError(t, err)
+
+	for _, record := range records {
+		data, err := os.ReadFile(record)
+		assert.NilError(t, err)
+
+		var stored struct {
+			Summary string `yaml:"summary"`
+		}
+
+		assert.NilError(t, yaml.Unmarshal(data, &stored))
+
+		if stored.Summary == summary {
+			return filepath.Base(record)[:nib.SHORT_UUID_LENGTH]
+		}
+	}
+
+	t.Fatalf("no task with summary %q in %s", summary, repoPath)
+
+	return ""
 }
 
 func makeRepo(t *testing.T) (string, func()) {
