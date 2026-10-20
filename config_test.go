@@ -10,6 +10,7 @@ import (
 func TestDefaultStoreIsInHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("NIB_GIT_REPO", "")
 
 	conf := NewConfig()
