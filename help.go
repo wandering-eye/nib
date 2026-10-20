@@ -28,8 +28,8 @@ Colour key:
 		helpStr = `Usage: nib add [template:<id>] [task summary] [--]
 Example: nib add Fix main web page 500 error +bug P1 project:website
 
-Add a task, returning the git commit output which contains the task ID, used
-later to reference the task.
+Add a task, printing the ID used later to reference the task, as in
+"Added 1a2b3c4d: Fix main web page 500 error".
 
 Tags, project and priority can be added anywhere within the task summary.
 
@@ -43,7 +43,7 @@ A copy of an existing task can be made by including "template:<id>". See
 	case CMD_TEMPLATE:
 		helpStr = `Usage nib template <id> [task summary] [--]
 Example: nib template Fix main web page 500 error +bug P1 project:website
-Example: nib template 34 project:
+Example: nib template 1a2b3c4d project:
 
 If valid task ID is supplied, a copy of the task is created as a template. If
 no ID is given, a new task template is created.
@@ -72,7 +72,7 @@ performing procedures. Example:
 `
 	case CMD_RM, CMD_REMOVE:
 		helpStr = `Usage: nib remove <id...>
-Example: nib 15 remove
+Example: nib 1a2b3c4d remove
 
 Remove a task.
 
@@ -94,7 +94,7 @@ Add -- to ignore the current context.
 	case CMD_START:
 		helpStr = `Usage: nib <id...> start
 Usage: nib start [task summary] [--]
-Example: nib 15 start
+Example: nib 1a2b3c4d start
 Example: nib start Fix main web page 500 error +bug P1 project:website
 
 Mark a task as active, meaning you're currently at work on the task.
@@ -110,14 +110,14 @@ Add -- to ignore the current context.
 	case CMD_NOTES:
 		helpStr = `Usage: nib note <id>
 Usage: nib note <id> <text>
-Example task 13 note problem is faulty hardware
+Example: nib note 1a2b3c4d problem is faulty hardware
 
 Edit or append text to the markdown notes attached to a particular task.
 `
 	case CMD_STOP:
 		helpStr = `Usage: nib <id...> stop [text]
-Example: nib 15 stop
-Example: nib 15 stop replaced some hardware
+Example: nib 1a2b3c4d stop
+Example: nib 1a2b3c4d stop replaced some hardware
 
 Set a task as inactive, meaning you've stopped work on the task. Optional text
 may be added, which will be appended to the note.
@@ -126,8 +126,8 @@ may be added, which will be appended to the note.
 		fallthrough
 	case CMD_DONE:
 		helpStr = `Usage: nib <id...> done [closing note]
-Example: nib 15 done
-Example: nib 15 done replaced some hardware
+Example: nib 1a2b3c4d done
+Example: nib 1a2b done replaced some hardware
 
 Resolve a task. Optional text may be added, which will be appended to the note.
 `
@@ -150,7 +150,7 @@ this context string will override the context stored on disk.
 	case CMD_MODIFY:
 		helpStr = `Usage: nib <id...> modify <filter>
 Usage: nib modify <filter>
-Example: nib 34 modify -work +home project:workbench -project:website
+Example: nib 1a2b3c4d modify -work +home project:workbench -project:website
 
 Modify the attributes of the given tasks, specified by ID. If no ID is given,
 the operation will be performed to all tasks in the current context subject to
@@ -239,6 +239,11 @@ for a substring search of description and notes.
 Cmd and IDs can be swapped, multiple IDs can be specified for batch
 operations.
 
+A task's ID is a leading part of its UUID. The first 8 characters are shown
+wherever tasks are listed; any prefix of at least 4 characters works, as does
+the full UUID, with or without hyphens. A prefix shared by more than one task
+is refused with the candidates listed rather than guessed.
+
 run "nib help <cmd>" for command specific help.
 
 Add -- to ignore the current context. / can be used when adding tasks to note
@@ -276,6 +281,15 @@ zsh-completion      : Print zsh completion script to stdout
 nushell-completion  : Print nushell completion script to stdout
 help                : Get help on any command or show this message
 version             : Show nib version information
+
+Exit codes:
+
+0  success, including a filter that matched nothing
+1  failure
+2  usage error, including an ID shorter than 4 characters
+3  an ID matched no task
+4  nothing changed, or a confirmation was declined
+5  an ID matched more than one task
 
 Colour Key:
 `
